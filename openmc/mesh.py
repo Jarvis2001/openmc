@@ -528,23 +528,19 @@ class MeshBase(IDManagerMixin, ABC):
         # traversal order used by the C library.
         mat_arr = volumes._materials.copy()
         vol_arr = volumes._volumes.copy()
-        bbox_arr = (
-            volumes._bboxes.copy() if volumes._bboxes is not None else None
-        )
+        bbox_arr = volumes._bboxes.copy() if volumes._bboxes is not None else None
         n_elements, table_size = mat_arr.shape
 
         def _sort_key(m):
             m = int(m)
             if m == -2:
-                return (2, 0)  # empty slot – always last
+                return (2, 0)   # empty slot – always last
             if m == -1:
-                return (1, 0)  # vacuum / None – just before empty
-            return (0, m)  # real material – ascending ID
+                return (1, 0)   # vacuum / None – just before empty
+            return (0, m)       # real material – ascending ID
 
         for i in range(n_elements):
-            indices = sorted(
-                range(table_size), key=lambda j: _sort_key(mat_arr[i, j])
-            )
+            indices = sorted(range(table_size), key=lambda j: _sort_key(mat_arr[i, j]))
             mat_arr[i] = mat_arr[i, indices]
             vol_arr[i] = vol_arr[i, indices]
             if bbox_arr is not None:
@@ -710,13 +706,11 @@ class StructuredMesh(MeshBase):
             "Use 'n_elements' instead.", FutureWarning, stacklevel=2, )
         return self.n_elements
 
-    def write_data_to_vtk(
-        self,
-        filename: PathLike,
-        datasets: dict | None = None,
-        volume_normalization: bool = False,
-        curvilinear: bool = False,
-    ):
+    def write_data_to_vtk(self,
+                          filename: PathLike,
+                          datasets: dict | None = None,
+                          volume_normalization: bool = False,
+                          curvilinear: bool = False):
         """Creates a VTK object of the mesh
 
         Parameters
@@ -766,11 +760,9 @@ class StructuredMesh(MeshBase):
            >>> mesh.write_data_to_vtk({'heating': heating})
         """
         if Path(filename).suffix == ".vtkhdf":
-            write_impl = getattr(self, "_write_vtk_hdf5", None)
+            write_impl = getattr(self, '_write_vtk_hdf5', None)
             if write_impl is None:
-                raise NotImplementedError(
-                    f"VTKHDF output not implemented for {type(self).__name__}"
-                )
+                raise NotImplementedError(f"VTKHDF output not implemented for {type(self).__name__}")
             # write_impl is a bound method – do NOT pass self again
             write_impl(filename, datasets, volume_normalization)
             return None
@@ -1608,25 +1600,19 @@ class RegularMesh(StructuredMesh):
         # that every point has an (x, y, z) triple; extra coordinates are 0.
         coords_1d = []
         for i in range(ndim):
-            c = np.linspace(
-                self.lower_left[i], self.upper_right[i], dims[i] + 1
-            )
+            c = np.linspace(self.lower_left[i], self.upper_right[i], dims[i] + 1)
             coords_1d.append(c)
         while len(coords_1d) < 3:
             coords_1d.append(np.array([0.0]))
 
         # np.meshgrid with indexing='ij' → axis 0 = x, axis 1 = y, axis 2 = z
-        xx, yy, zz = np.meshgrid(*coords_1d, indexing="ij")
+        xx, yy, zz = np.meshgrid(*coords_1d, indexing='ij')
         # Flatten in Fortran (x-fastest) order for VTK point ordering
-        points = np.column_stack(
-            [
-                xx.ravel(order="F"),
-                yy.ravel(order="F"),
-                zz.ravel(order="F"),
-            ]
-        ).astype(
-            np.float64
-        )  # shape (n_points, 3)
+        points = np.column_stack([
+            xx.ravel(order='F'),
+            yy.ravel(order='F'),
+            zz.ravel(order='F'),
+        ]).astype(np.float64)   # shape (n_points, 3)
 
         with h5py.File(filename, "w") as f:
             root = f.create_group("VTKHDF")
@@ -1656,7 +1642,8 @@ class RegularMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})")
+                        f" equal to the number of mesh cells ({self.n_elements})"
+                    )
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -1903,10 +1890,9 @@ class RectilinearMesh(StructuredMesh):
         nx, ny, nz = self.dimension
         vertex_dims = [nx + 1, ny + 1, nz + 1]
 
-        vertices = np.stack(
-            np.meshgrid(self.x_grid, self.y_grid, self.z_grid, indexing="ij"),
-            axis=-1,
-        )
+        vertices = np.stack(np.meshgrid(
+            self.x_grid, self.y_grid, self.z_grid, indexing='ij'
+        ), axis=-1)
 
         with h5py.File(filename, "w") as f:
             root = f.create_group("VTKHDF")
@@ -1915,9 +1901,7 @@ class RectilinearMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset(
-                "Points", data=points.astype(np.float64), dtype="f8"
-            )
+            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
 
             cell_data_group = root.create_group("CellData")
 
@@ -1935,7 +1919,8 @@ class RectilinearMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})")
+                        f" equal to the number of mesh cells ({self.n_elements})"
+                    )
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -2421,9 +2406,7 @@ class CylindricalMesh(StructuredMesh):
         nr, nphi, nz = self.dimension
         vertex_dims = [nr + 1, nphi + 1, nz + 1]
 
-        R, Phi, Z = np.meshgrid(
-            self.r_grid, self.phi_grid, self.z_grid, indexing="ij"
-        )
+        R, Phi, Z = np.meshgrid(self.r_grid, self.phi_grid, self.z_grid, indexing='ij')
         X = R * np.cos(Phi) + self.origin[0]
         Y = R * np.sin(Phi) + self.origin[1]
         Z = Z + self.origin[2]
@@ -2436,9 +2419,7 @@ class CylindricalMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset(
-                "Points", data=points.astype(np.float64), dtype="f8"
-            )
+            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
 
             cell_data_group = root.create_group("CellData")
 
@@ -2456,7 +2437,8 @@ class CylindricalMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})")
+                        f" equal to the number of mesh cells ({self.n_elements})"
+                    )
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -2885,7 +2867,7 @@ class SphericalMesh(StructuredMesh):
         vertex_dims = [nr + 1, ntheta + 1, nphi + 1]
 
         R, Theta, Phi = np.meshgrid(
-            self.r_grid, self.theta_grid, self.phi_grid, indexing="ij"
+            self.r_grid, self.theta_grid, self.phi_grid, indexing='ij'
         )
         X = R * np.sin(Theta) * np.cos(Phi) + self.origin[0]
         Y = R * np.sin(Theta) * np.sin(Phi) + self.origin[1]
@@ -2899,9 +2881,7 @@ class SphericalMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset(
-                "Points", data=points.astype(np.float64), dtype="f8"
-            )
+            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
 
             cell_data_group = root.create_group("CellData")
 
@@ -2919,7 +2899,8 @@ class SphericalMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})")
+                        f" equal to the number of mesh cells ({self.n_elements})"
+                    )
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -3404,10 +3385,9 @@ class UnstructuredMesh(MeshBase):
         volume_normalization: bool = True,
     ):
         """Write UnstructuredMesh as VTK-HDF5 UnstructuredGrid format.
-
+        
         Supports linear tetrahedra and linear hexahedra elements.
         """
-
         def append_dataset(dset, array):
             """Convenience function to append data to an HDF5 dataset"""
             origLen = dset.shape[0]
@@ -3504,7 +3484,7 @@ class UnstructuredMesh(MeshBase):
             cell_data_group = root.create_group("CellData")
 
             for name, data in datasets.items():
-
+                
                 cell_data_group.create_dataset(
                     name, (0,), maxshape=(None,), dtype="float64", chunks=True
                 )
@@ -3637,9 +3617,7 @@ _HEX_MIDPOINT_CONN += (
     (1, (0, 0, 1)),
 )
 # mid-plane k connectivity
-_HEX_MIDPOINT_CONN += (
-    (2, (0, 0, 0)),
-    (2, (1, 0, 0)),
-    (2, (1, 1, 0)),
-    (2, (0, 1, 0)),
-)
+_HEX_MIDPOINT_CONN += ((2, (0, 0, 0)),
+                       (2, (1, 0, 0)),
+                       (2, (1, 1, 0)),
+                       (2, (0, 1, 0)))

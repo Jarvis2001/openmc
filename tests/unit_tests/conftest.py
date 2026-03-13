@@ -1,5 +1,6 @@
 import os
 
+import openmc
 import pytest
 
 import openmc
@@ -15,7 +16,7 @@ def run_in_tmpdir(tmp_path):
     os.chdir(orig)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def mpi_intracomm():
     if config["mpi"]:
         from mpi4py import MPI

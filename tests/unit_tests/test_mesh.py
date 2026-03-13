@@ -642,7 +642,6 @@ def test_write_vtkhdf(request, run_in_tmpdir):
     with h5py.File("test_mesh.vtkhdf", "r"):
         ...
 
-
 def test_mesh_get_homogenized_materials():
     """Test the get_homogenized_materials method"""
     # Simple model with 1 cm of Fe56 next to 1 cm of H1
@@ -939,7 +938,6 @@ def test_filter_time_mesh(run_in_tmpdir):
 # VTKHDF Format Tests for StructuredMeshes
 # =============================================================================
 
-
 def test_regular_mesh_get_indices_at_coords():
     """Test get_indices_at_coords method for RegularMesh"""
     # Create a 10x10x10 mesh from (0,0,0) to (1,1,1)
@@ -1012,12 +1010,11 @@ def test_regular_mesh_get_indices_at_coords():
     assert len(result_1d) == 1
     assert result_1d == (5,)
 
-
 def test_write_vtkhdf_regular_mesh(run_in_tmpdir):
     """Test writing a regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [-5.0, -5.0, -5.0]
-    mesh.upper_right = [5.0, 5.0, 5.0]
+    mesh.lower_left = [-5., -5., -5.]
+    mesh.upper_right = [5., 5., 5.]
     mesh.dimension = [2, 3, 4]
 
     # Sample some random data and write to VTKHDF
@@ -1051,9 +1048,9 @@ def test_write_vtkhdf_regular_mesh(run_in_tmpdir):
 def test_write_vtkhdf_rectilinear_mesh(run_in_tmpdir):
     """Test writing a rectilinear mesh to VTKHDF format."""
     mesh = openmc.RectilinearMesh()
-    mesh.x_grid = np.array([0.0, 1.0, 3.0, 6.0])
-    mesh.y_grid = np.array([-5.0, 0.0, 5.0])
-    mesh.z_grid = np.array([-10.0, -5.0, 0.0, 5.0, 10.0])
+    mesh.x_grid = np.array([0., 1., 3., 6.])
+    mesh.y_grid = np.array([-5., 0., 5.])
+    mesh.z_grid = np.array([-10., -5., 0., 5., 10.])
 
     # Sample some random data and write to VTKHDF
     rng = np.random.default_rng(42)
@@ -1078,10 +1075,10 @@ def test_write_vtkhdf_rectilinear_mesh(run_in_tmpdir):
 def test_write_vtkhdf_cylindrical_mesh(run_in_tmpdir):
     """Test writing a cylindrical mesh to VTKHDF format."""
     mesh = openmc.CylindricalMesh(
-        r_grid=[0.0, 1.0, 2.0, 3.0],
-        phi_grid=[0.0, pi / 2, pi, 3 * pi / 2, 2 * pi],
-        z_grid=[-5.0, 0.0, 5.0],
-        origin=[0.0, 0.0, 0.0],
+        r_grid=[0., 1., 2., 3.],
+        phi_grid=[0., pi/2, pi, 3*pi/2, 2*pi],
+        z_grid=[-5., 0., 5.],
+        origin=[0., 0., 0.]
     )
 
     # Sample some random data and write to VTKHDF
@@ -1101,17 +1098,17 @@ def test_write_vtkhdf_cylindrical_mesh(run_in_tmpdir):
 
         # Check dimensions (vertices)
         dims = root["Dimensions"][()]
-        expected_dims = np.array([3 + 1, 4 + 1, 2 + 1])  # r, phi, z
+        expected_dims = np.array([3+1, 4+1, 2+1])  # r, phi, z
         np.testing.assert_array_equal(dims, expected_dims)
 
 
 def test_write_vtkhdf_spherical_mesh(run_in_tmpdir):
     """Test writing a spherical mesh to VTKHDF format."""
     mesh = openmc.SphericalMesh(
-        r_grid=[0.0, 1.0, 2.0, 3.0],
-        theta_grid=[0.0, pi / 4, pi / 2, 3 * pi / 4, pi],
-        phi_grid=[0.0, pi / 2, pi, 3 * pi / 2, 2 * pi],
-        origin=[0.0, 0.0, 0.0],
+        r_grid=[0., 1., 2., 3.],
+        theta_grid=[0., pi/4, pi/2, 3*pi/4, pi],
+        phi_grid=[0., pi/2, pi, 3*pi/2, 2*pi],
+        origin=[0., 0., 0.]
     )
 
     # Sample some random data and write to VTKHDF
@@ -1134,8 +1131,8 @@ def test_write_vtkhdf_spherical_mesh(run_in_tmpdir):
 def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
     """Test volume normalization in VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0, 0.0, 0.0]
-    mesh.upper_right = [10.0, 10.0, 10.0]
+    mesh.lower_left = [0., 0., 0.]
+    mesh.upper_right = [10., 10., 10.]
     mesh.dimension = [2, 2, 2]
 
     # Create data with known values
@@ -1147,14 +1144,14 @@ def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
     mesh.write_data_to_vtk(
         datasets={"flux": ref_data},
         filename=filename_with_norm,
-        volume_normalization=True,
+        volume_normalization=True
     )
 
     # Write without normalization
     mesh.write_data_to_vtk(
         datasets={"flux": ref_data},
         filename=filename_without_norm,
-        volume_normalization=False,
+        volume_normalization=False
     )
 
     # Read both files and compare
@@ -1174,8 +1171,8 @@ def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
 def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
     """Test writing multiple datasets to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0, 0.0, 0.0]
-    mesh.upper_right = [1.0, 1.0, 1.0]
+    mesh.lower_left = [0., 0., 0.]
+    mesh.upper_right = [1., 1., 1.]
     mesh.dimension = [2, 2, 2]
 
     # Create multiple datasets
@@ -1187,7 +1184,7 @@ def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
     filename = "test_multiple_datasets.vtkhdf"
     mesh.write_data_to_vtk(
         datasets={"flux": data1, "power": data2, "heating": data3},
-        filename=filename,
+        filename=filename
     )
 
     assert Path(filename).exists()
@@ -1201,40 +1198,42 @@ def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
 
         # Verify data integrity
         np.testing.assert_allclose(
-            root["CellData"]["flux"][()], data1.T.ravel()
+            root["CellData"]["flux"][()],
+            data1.T.ravel()
         )
         np.testing.assert_allclose(
-            root["CellData"]["power"][()], data2.T.ravel()
+            root["CellData"]["power"][()],
+            data2.T.ravel()
         )
         np.testing.assert_allclose(
-            root["CellData"]["heating"][()], data3.T.ravel()
+            root["CellData"]["heating"][()],
+            data3.T.ravel()
         )
 
 
 def test_write_vtkhdf_invalid_data_shape(run_in_tmpdir):
     """Test that VTKHDF raises error for mismatched data shape."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0, 0.0, 0.0]
-    mesh.upper_right = [1.0, 1.0, 1.0]
+    mesh.lower_left = [0., 0., 0.]
+    mesh.upper_right = [1., 1., 1.]
     mesh.dimension = [2, 2, 2]
 
     # Create data with wrong shape
     wrong_data = np.ones((3, 3, 3))
     filename = "test_invalid_shape.vtkhdf"
 
-    with pytest.raises(
-        ValueError, match="Cannot apply multidimensional dataset"
-    ):
+    with pytest.raises(ValueError, match="Cannot apply multidimensional dataset"):
         mesh.write_data_to_vtk(
-            datasets={"bad_data": wrong_data}, filename=filename
+            datasets={"bad_data": wrong_data},
+            filename=filename
         )
 
 
 def test_write_vtkhdf_1d_mesh(run_in_tmpdir):
     """Test writing a 1D regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0]
-    mesh.upper_right = [10.0]
+    mesh.lower_left = [0.]
+    mesh.upper_right = [10.]
     mesh.dimension = [5]
 
     rng = np.random.default_rng(42)
@@ -1255,8 +1254,8 @@ def test_write_vtkhdf_1d_mesh(run_in_tmpdir):
 def test_write_vtkhdf_2d_mesh(run_in_tmpdir):
     """Test writing a 2D regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0, 0.0]
-    mesh.upper_right = [10.0, 10.0]
+    mesh.lower_left = [0., 0.]
+    mesh.upper_right = [10., 10.]
     mesh.dimension = [5, 3]
 
     rng = np.random.default_rng(42)
@@ -1277,8 +1276,8 @@ def test_write_vtkhdf_2d_mesh(run_in_tmpdir):
 def test_write_ascii_vtk_unchanged(run_in_tmpdir):
     """Test that ASCII .vtk format still works as before."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.0, 0.0, 0.0]
-    mesh.upper_right = [1.0, 1.0, 1.0]
+    mesh.lower_left = [0., 0., 0.]
+    mesh.upper_right = [1., 1., 1.]
     mesh.dimension = [2, 2, 2]
 
     rng = np.random.default_rng(42)
