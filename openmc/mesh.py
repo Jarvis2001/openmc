@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from functools import wraps
-from math import pi, sqrt, atan2
+from math import atan2, pi, sqrt
 from numbers import Integral, Real
 from pathlib import Path
 from typing import Protocol
@@ -11,14 +12,13 @@ from typing import Protocol
 import h5py
 import lxml.etree as ET
 import numpy as np
-from pathlib import Path
 
 import openmc
 import openmc.checkvalue as cv
 from openmc.checkvalue import PathLike
-from openmc.utility_funcs import change_directory
-from .bounding_box import BoundingBox
+
 from ._xml import get_elem_list, get_text
+from .bounding_box import BoundingBox
 from .mixin import IDManagerMixin
 from .surface import _BOUNDARY_TYPES
 from .utility_funcs import input_path
@@ -70,11 +70,12 @@ class MeshMaterialVolumes(Mapping):
     [(2, 31.87963824195591), (1, 6.129949130817542)]
 
     """
+
     def __init__(
         self,
         materials: np.ndarray,
         volumes: np.ndarray,
-        bboxes: np.ndarray | None = None
+        bboxes: np.ndarray | None = None,
     ):
         self._materials = materials
         self._volumes = volumes
@@ -83,12 +84,12 @@ class MeshMaterialVolumes(Mapping):
         if self._bboxes is not None:
             if self._bboxes.shape[:2] != self._materials.shape:
                 raise ValueError(
-                    'bboxes must have shape (elements, max_materials, 6) '
-                    'matching materials/volumes.'
+                    "bboxes must have shape (elements, max_materials, 6) "
+                    "matching materials/volumes."
                 )
             if self._bboxes.shape[2] != 6:
                 raise ValueError(
-                    'bboxes must have shape (elements, max_materials, 6).'
+                    "bboxes must have shape (elements, max_materials, 6)."
                 )
 
     @property
@@ -109,21 +110,28 @@ class MeshMaterialVolumes(Mapping):
 
     def __repr__(self) -> str:
         ids, counts = np.unique(self._materials, return_counts=True)
-        return '{' + '\n '.join(
-            f'{id}: <{count} nonzero volumes>' for id, count in zip(ids, counts) if id > 0) + '}'
+        return (
+            "{"
+            + "\n ".join(
+                f"{id}: <{count} nonzero volumes>"
+                for id, count in zip(ids, counts)
+                if id > 0
+            )
+            + "}"
+        )
 
     def __getitem__(self, material_id: int) -> np.ndarray:
         volumes = np.zeros(self.num_elements)
         for i in range(self._volumes.shape[1]):
-            indices = (self._materials[:, i] == material_id)
+            indices = self._materials[:, i] == material_id
             volumes[indices] = self._volumes[indices, i]
         return volumes
 
     def by_element(
-        self,
-        index_elem: int,
-        include_bboxes: bool = False
-    ) -> list[tuple[int | None, float] | tuple[int | None, float, BoundingBox | None]]:
+        self, index_elem: int, include_bboxes: bool = False
+    ) -> list[
+        tuple[int | None, float] | tuple[int | None, float, BoundingBox | None]
+    ]:
         """Get a list of volumes for each material within a specific element.
 
         Parameters
@@ -141,7 +149,9 @@ class MeshMaterialVolumes(Mapping):
         """
         table_size = self._volumes.shape[1]
         if include_bboxes and self._bboxes is None:
-            raise ValueError('Bounding boxes were not computed for this object.')
+            raise ValueError(
+                "Bounding boxes were not computed for this object."
+            )
 
         results = []
         for i in range(table_size):
@@ -168,9 +178,9 @@ class MeshMaterialVolumes(Mapping):
         filename : path-like
             Filename where data will be saved
         """
-        kwargs = {'materials': self._materials, 'volumes': self._volumes}
+        kwargs = {"materials": self._materials, "volumes": self._volumes}
         if self._bboxes is not None:
-            kwargs['bboxes'] = self._bboxes
+            kwargs["bboxes"] = self._bboxes
         np.savez_compressed(filename, **kwargs)
 
     @classmethod
@@ -184,8 +194,8 @@ class MeshMaterialVolumes(Mapping):
 
         """
         filedata = np.load(filename)
-        bboxes = filedata['bboxes'] if 'bboxes' in filedata.files else None
-        return cls(filedata['materials'], filedata['volumes'], bboxes)
+        bboxes = filedata["bboxes"] if "bboxes" in filedata.files else None
+        return cls(filedata["materials"], filedata["volumes"], bboxes)
 
 
 class MeshBase(IDManagerMixin, ABC):
@@ -220,7 +230,7 @@ class MeshBase(IDManagerMixin, ABC):
     next_id = 1
     used_ids = set()
 
-    def __init__(self, mesh_id: int | None = None, name: str = ''):
+    def __init__(self, mesh_id: int | None = None, name: str = ""):
         # Initialize Mesh class attributes
         self.id = mesh_id
         self.name = name
@@ -235,7 +245,7 @@ class MeshBase(IDManagerMixin, ABC):
             cv.check_type(f'name for mesh ID="{self._id}"', name, str)
             self._name = name
         else:
-            self._name = ''
+            self._name = ""
 
     @property
     @abstractmethod
@@ -262,16 +272,16 @@ class MeshBase(IDManagerMixin, ABC):
         pass
 
     def __repr__(self):
-        string = type(self).__name__ + '\n'
-        string += '{0: <16}{1}{2}\n'.format('\tID', '=\t', self._id)
-        string += '{0: <16}{1}{2}\n'.format('\tName', '=\t', self._name)
+        string = type(self).__name__ + "\n"
+        string += "{0: <16}{1}{2}\n".format("\tID", "=\t", self._id)
+        string += "{0: <16}{1}{2}\n".format("\tName", "=\t", self._name)
         return string
 
     def _volume_dim_check(self):
-        if self.n_dimension != 3 or \
-           any([d == 0 for d in self.dimension]):
-            raise RuntimeError(f'Mesh {self.id} is not 3D. '
-                               'Volumes cannot be provided.')
+        if self.n_dimension != 3 or any([d == 0 for d in self.dimension]):
+            raise RuntimeError(
+                f"Mesh {self.id} is not 3D. " "Volumes cannot be provided."
+            )
 
     @classmethod
     def from_hdf5(cls, group: h5py.Group):
@@ -288,19 +298,23 @@ class MeshBase(IDManagerMixin, ABC):
             Instance of a MeshBase subclass
 
         """
-        mesh_type = 'regular' if 'type' not in group.keys() else group['type'][()].decode()
-        mesh_id = int(group.name.split('/')[-1].lstrip('mesh '))
-        mesh_name = '' if not 'name' in group else group['name'][()].decode()
+        mesh_type = (
+            "regular"
+            if "type" not in group.keys()
+            else group["type"][()].decode()
+        )
+        mesh_id = int(group.name.split("/")[-1].lstrip("mesh "))
+        mesh_name = "" if "name" not in group else group["name"][()].decode()
 
-        if mesh_type == 'regular':
+        if mesh_type == "regular":
             return RegularMesh.from_hdf5(group, mesh_id, mesh_name)
-        elif mesh_type == 'rectilinear':
+        elif mesh_type == "rectilinear":
             return RectilinearMesh.from_hdf5(group, mesh_id, mesh_name)
-        elif mesh_type == 'cylindrical':
+        elif mesh_type == "cylindrical":
             return CylindricalMesh.from_hdf5(group, mesh_id, mesh_name)
-        elif mesh_type == 'spherical':
+        elif mesh_type == "spherical":
             return SphericalMesh.from_hdf5(group, mesh_id, mesh_name)
-        elif mesh_type == 'unstructured':
+        elif mesh_type == "unstructured":
             return UnstructuredMesh.from_hdf5(group, mesh_id, mesh_name)
         else:
             raise ValueError('Unrecognized mesh type: "' + mesh_type + '"')
@@ -337,31 +351,31 @@ class MeshBase(IDManagerMixin, ABC):
             an openmc mesh object
 
         """
-        mesh_type = get_text(elem, 'type')
+        mesh_type = get_text(elem, "type")
 
-        if mesh_type == 'regular' or mesh_type is None:
+        if mesh_type == "regular" or mesh_type is None:
             mesh = RegularMesh.from_xml_element(elem)
-        elif mesh_type == 'rectilinear':
+        elif mesh_type == "rectilinear":
             mesh = RectilinearMesh.from_xml_element(elem)
-        elif mesh_type == 'cylindrical':
+        elif mesh_type == "cylindrical":
             mesh = CylindricalMesh.from_xml_element(elem)
-        elif mesh_type == 'spherical':
+        elif mesh_type == "spherical":
             mesh = SphericalMesh.from_xml_element(elem)
-        elif mesh_type == 'unstructured':
+        elif mesh_type == "unstructured":
             mesh = UnstructuredMesh.from_xml_element(elem)
         else:
             raise ValueError(f'Unrecognized mesh type "{mesh_type}" found.')
 
-        mesh.name = get_text(elem, 'name', default='')
+        mesh.name = get_text(elem, "name", default="")
         return mesh
 
     def get_homogenized_materials(
-            self,
-            model: openmc.Model,
-            n_samples: int | tuple[int, int, int] = 10_000,
-            include_void: bool = True,
-            material_volumes: MeshMaterialVolumes | None = None,
-            **kwargs
+        self,
+        model: openmc.Model,
+        n_samples: int | tuple[int, int, int] = 10_000,
+        include_void: bool = True,
+        material_volumes: MeshMaterialVolumes | None = None,
+        **kwargs,
     ) -> list[openmc.Material]:
         """Generate homogenized materials over each element in a mesh.
 
@@ -396,7 +410,9 @@ class MeshBase(IDManagerMixin, ABC):
             vols = self.material_volumes(model, n_samples, **kwargs)
         else:
             vols = material_volumes
-        mat_volume_by_element = [vols.by_element(i) for i in range(vols.num_elements)]
+        mat_volume_by_element = [
+            vols.by_element(i) for i in range(vols.num_elements)
+        ]
 
         # Get dictionary of all materials
         materials = model._get_all_materials()
@@ -426,7 +442,7 @@ class MeshBase(IDManagerMixin, ABC):
             # Get list of materials and mix 'em up!
             mats = [materials[uid] for uid in material_ids]
             homogenized_mat = openmc.Material.mix_materials(
-                mats, volume_fracs, 'vo'
+                mats, volume_fracs, "vo"
             )
             homogenized_mat.volume = total_volume
             homogenized_materials.append(homogenized_mat)
@@ -434,12 +450,12 @@ class MeshBase(IDManagerMixin, ABC):
         return homogenized_materials
 
     def material_volumes(
-            self,
-            model: openmc.Model,
-            n_samples: int | tuple[int, int, int] = 10_000,
-            max_materials: int = 4,
-            bounding_boxes: bool = False,
-            **kwargs
+        self,
+        model: openmc.Model,
+        n_samples: int | tuple[int, int, int] = 10_000,
+        max_materials: int = 4,
+        bounding_boxes: bool = False,
+        **kwargs,
     ) -> MeshMaterialVolumes:
         """Determine volume of materials in each mesh element.
 
@@ -482,14 +498,14 @@ class MeshBase(IDManagerMixin, ABC):
         original_tallies = list(model.tallies)
         new_tally = openmc.Tally()
         new_tally.filters = [openmc.MeshFilter(self)]
-        new_tally.scores = ['flux']
+        new_tally.scores = ["flux"]
         model.tallies = [new_tally]
 
         # Set default arguments
-        kwargs.setdefault('output', True)
-        if 'args' in kwargs:
-            kwargs['args'] = ['-c'] + kwargs['args']
-        kwargs.setdefault('args', ['-c'])
+        kwargs.setdefault("output", True)
+        if "args" in kwargs:
+            kwargs["args"] = ["-c"] + kwargs["args"]
+        kwargs.setdefault("args", ["-c"])
 
         with openmc.lib.TemporarySession(model, **kwargs):
             # Get mesh from single tally
@@ -497,8 +513,11 @@ class MeshBase(IDManagerMixin, ABC):
 
             # Compute material volumes
             volumes = mesh.material_volumes(
-                n_samples, max_materials, output=kwargs['output'],
-                bounding_boxes=bounding_boxes)
+                n_samples,
+                max_materials,
+                output=kwargs["output"],
+                bounding_boxes=bounding_boxes,
+            )
 
         # Restore original tallies
         model.tallies = original_tallies
@@ -509,19 +528,23 @@ class MeshBase(IDManagerMixin, ABC):
         # traversal order used by the C library.
         mat_arr = volumes._materials.copy()
         vol_arr = volumes._volumes.copy()
-        bbox_arr = volumes._bboxes.copy() if volumes._bboxes is not None else None
+        bbox_arr = (
+            volumes._bboxes.copy() if volumes._bboxes is not None else None
+        )
         n_elements, table_size = mat_arr.shape
 
         def _sort_key(m):
             m = int(m)
             if m == -2:
-                return (2, 0)   # empty slot – always last
+                return (2, 0)  # empty slot – always last
             if m == -1:
-                return (1, 0)   # vacuum / None – just before empty
-            return (0, m)       # real material – ascending ID
+                return (1, 0)  # vacuum / None – just before empty
+            return (0, m)  # real material – ascending ID
 
         for i in range(n_elements):
-            indices = sorted(range(table_size), key=lambda j: _sort_key(mat_arr[i, j]))
+            indices = sorted(
+                range(table_size), key=lambda j: _sort_key(mat_arr[i, j])
+            )
             mat_arr[i] = mat_arr[i, indices]
             vol_arr[i] = vol_arr[i, indices]
             if bbox_arr is not None:
@@ -596,9 +619,11 @@ class StructuredMesh(MeshBase):
     @staticmethod
     def _generate_vertices(i_grid, j_grid, k_grid):
         """Returns an array with shape (i_grid.size, j_grid.size, k_grid.size, 3)
-           containing the corner vertices of mesh elements.
+        containing the corner vertices of mesh elements.
         """
-        return np.stack(np.meshgrid(i_grid, j_grid, k_grid, indexing='ij'), axis=-1)
+        return np.stack(
+            np.meshgrid(i_grid, j_grid, k_grid, indexing="ij"), axis=-1
+        )
 
     @staticmethod
     def _generate_edge_midpoints(grids):
@@ -619,7 +644,8 @@ class StructuredMesh(MeshBase):
         # generate a set of edge midpoints for each dimension
         midpoint_grids = []
         # generate the element edge midpoints in order s.t.
-        # the epxected element ordering is preserved with respect to the corner vertices
+        # the epxected element ordering is preserved with respect to the corner
+        # vertices
 
         # each grid is comprised of the mid points for one dimension and the
         # corner vertices of the other two
@@ -633,15 +659,16 @@ class StructuredMesh(MeshBase):
 
             # re-use the generate vertices method to create the full mesh grid
             # transpose to get (i, j, k) ordering of the gridpoints
-            midpoint_grid = StructuredMesh._generate_vertices(i_grid, j_grid, k_grid)
+            midpoint_grid = StructuredMesh._generate_vertices(
+                i_grid, j_grid, k_grid
+            )
             midpoint_grids.append(midpoint_grid)
 
         return midpoint_grids
 
     @property
     def midpoint_vertices(self):
-        """Create vertices that lie on the midpoint of element edges
-        """
+        """Create vertices that lie on the midpoint of element edges"""
         # generate edge midpoints needed for curvilinear element definition
         midpoint_vertices = self._generate_edge_midpoints(self._grids)
 
@@ -665,10 +692,11 @@ class StructuredMesh(MeshBase):
         """
         ndim = self.n_dimension
         # this line ensures that the vertices aren't adjusted by the origin or
-        # converted to the Cartesian system for cylindrical and spherical meshes
+        # converted to the Cartesian system for cylindrical and spherical
+        # meshes
         vertices = StructuredMesh.vertices.fget(self)
-        s0 = (slice(0, -1),)*ndim + (slice(None),)
-        s1 = (slice(1, None),)*ndim + (slice(None),)
+        s0 = (slice(0, -1),) * ndim + (slice(None),)
+        s1 = (slice(1, None),) * ndim + (slice(None),)
         return (vertices[s0] + vertices[s1]) / 2
 
     @property
@@ -679,16 +707,16 @@ class StructuredMesh(MeshBase):
     def num_mesh_cells(self):
         warnings.warn(
             "The 'num_mesh_cells' attribute is deprecated and will be removed in a future version. "
-            "Use 'n_elements' instead.",
-            FutureWarning, stacklevel=2
-        )
+            "Use 'n_elements' instead.", FutureWarning, stacklevel=2, )
         return self.n_elements
 
-    def write_data_to_vtk(self,
-                          filename: PathLike,
-                          datasets: dict | None = None,
-                          volume_normalization: bool = False,
-                          curvilinear: bool = False):
+    def write_data_to_vtk(
+        self,
+        filename: PathLike,
+        datasets: dict | None = None,
+        volume_normalization: bool = False,
+        curvilinear: bool = False,
+    ):
         """Creates a VTK object of the mesh
 
         Parameters
@@ -738,9 +766,11 @@ class StructuredMesh(MeshBase):
            >>> mesh.write_data_to_vtk({'heating': heating})
         """
         if Path(filename).suffix == ".vtkhdf":
-            write_impl = getattr(self, '_write_vtk_hdf5', None)
+            write_impl = getattr(self, "_write_vtk_hdf5", None)
             if write_impl is None:
-                raise NotImplementedError(f"VTKHDF output not implemented for {type(self).__name__}")
+                raise NotImplementedError(
+                    f"VTKHDF output not implemented for {type(self).__name__}"
+                )
             # write_impl is a bound method – do NOT pass self again
             write_impl(filename, datasets, volume_normalization)
             return None
@@ -779,7 +809,9 @@ class StructuredMesh(MeshBase):
 
                 dataset_array = vtk.vtkDoubleArray()
                 dataset_array.SetName(label)
-                dataset_array.SetArray(nps.numpy_to_vtk(dataset), dataset.size, True)
+                dataset_array.SetArray(
+                    nps.numpy_to_vtk(dataset), dataset.size, True
+                )
                 vtk_grid.GetCellData().AddArray(dataset_array)
 
         writer.SetFileName(str(filename))
@@ -800,7 +832,11 @@ class StructuredMesh(MeshBase):
         from vtk.util import numpy_support as nps
 
         vtkPts = vtk.vtkPoints()
-        vtkPts.SetData(nps.numpy_to_vtk(np.swapaxes(self.vertices, 0, 2).reshape(-1, 3), deep=True))
+        vtkPts.SetData(
+            nps.numpy_to_vtk(
+                np.swapaxes(self.vertices, 0, 2).reshape(-1, 3), deep=True
+            )
+        )
         vtk_grid = vtk.vtkStructuredGrid()
         vtk_grid.SetPoints(vtkPts)
         vtk_grid.SetDimensions(*[dim + 1 for dim in self.dimension])
@@ -827,17 +863,20 @@ class StructuredMesh(MeshBase):
         # add corner vertices to the point set for the unstructured grid
         # only insert unique points, we'll get their IDs in the point set to
         # define element connectivity later
-        vtkPts.SetData(nps.numpy_to_vtk(np.unique(corner_vertices, axis=0), deep=True))
+        vtkPts.SetData(
+            nps.numpy_to_vtk(np.unique(corner_vertices, axis=0), deep=True)
+        )
 
         # create a locator to assist with duplicate points
         locator = vtk.vtkPointLocator()
         locator.SetDataSet(vtk_grid)
-        locator.AutomaticOn() # autmoatically adds points to locator
+        locator.AutomaticOn()  # autmoatically adds points to locator
         locator.InitPointInsertion(vtkPts, vtkPts.GetBounds())
         locator.BuildLocator()
 
         # this function is used to add new points to the unstructured
-        # grid. It will return an existing point ID if the point is alread present
+        # grid. It will return an existing point ID if the point is alread
+        # present
         def _insert_point(pnt):
             result = locator.IsInsertedPoint(pnt)
             if result == -1:
@@ -847,7 +886,8 @@ class StructuredMesh(MeshBase):
             else:
                 return result
 
-        # Add all points to the unstructured grid, maintaining a flat list of IDs as we go ###
+        # Add all points to the unstructured grid, maintaining a flat list of
+        # IDs as we go ###
 
         # flat array storing point IDs for a given vertex
         # in the grid
@@ -884,7 +924,9 @@ class StructuredMesh(MeshBase):
             for n, (di, dj, dk) in enumerate(_HEX_VERTEX_CONN):
                 # compute flat index into the point ID list based on i, j, k
                 # of the vertex
-                flat_idx = np.ravel_multi_index((i+di, j+dj, k+dk), n_pnts, order='F')
+                flat_idx = np.ravel_multi_index(
+                    (i + di, j + dj, k + dk), n_pnts, order="F"
+                )
                 # set corner vertices
                 hex.GetPointIds().SetId(n, point_ids[flat_idx])
 
@@ -892,14 +934,18 @@ class StructuredMesh(MeshBase):
             n_midpoint_vertices = [v.size // 3 for v in midpoint_vertices]
             for n, (dim, (di, dj, dk)) in enumerate(_HEX_MIDPOINT_CONN):
                 # initial offset for corner vertices and midpoint dimension
-                flat_idx = corner_vertices.shape[0] + sum(n_midpoint_vertices[:dim])
+                flat_idx = corner_vertices.shape[0] + sum(
+                    n_midpoint_vertices[:dim]
+                )
                 # generate a flat index into the table of point IDs
                 midpoint_shape = midpoint_vertices[dim].shape[:-1]
-                flat_idx += np.ravel_multi_index((i+di, j+dj, k+dk),
-                                                 midpoint_shape,
-                                                 order='F')
+                flat_idx += np.ravel_multi_index(
+                    (i + di, j + dj, k + dk), midpoint_shape, order="F"
+                )
                 # set hex midpoint connectivity
-                hex.GetPointIds().SetId(_N_HEX_VERTICES + n, point_ids[flat_idx])
+                hex.GetPointIds().SetId(
+                    _N_HEX_VERTICES + n, point_ids[flat_idx]
+                )
 
             # add the hex to the grid
             vtk_grid.InsertNextCell(hex.GetCellType(), hex.GetPointIds())
@@ -932,7 +978,9 @@ class StructuredMesh(MeshBase):
             reshaped_data = reshaped_data.squeeze()
 
         # remove any higher dimensions with size 1
-        if reshaped_data.ndim > 3 and all(d == 1 for d in reshaped_data.shape[3:]):
+        if reshaped_data.ndim > 3 and all(
+            d == 1 for d in reshaped_data.shape[3:]
+        ):
             reshaped_data = reshaped_data.reshape(reshaped_data.shape[:3])
 
         if np.shares_memory(reshaped_data, dataset):
@@ -951,7 +999,7 @@ class StructuredMesh(MeshBase):
             The dataset array to check against this mesh's dimensions
 
         """
-        cv.check_type('data label', label, str)
+        cv.check_type("data label", label, str)
 
         if dataset.size != self.n_elements:
             raise ValueError(
@@ -973,6 +1021,7 @@ class StructuredMesh(MeshBase):
 
 class HasBoundingBox(Protocol):
     """Object that has a ``bounding_box`` attribute."""
+
     bounding_box: openmc.BoundingBox
 
 
@@ -1013,7 +1062,7 @@ class RegularMesh(StructuredMesh):
 
     """
 
-    def __init__(self, mesh_id: int | None = None, name: str = ''):
+    def __init__(self, mesh_id: int | None = None, name: str = ""):
         super().__init__(mesh_id, name)
 
         self._dimension = None
@@ -1027,8 +1076,8 @@ class RegularMesh(StructuredMesh):
 
     @dimension.setter
     def dimension(self, dimension: Iterable[int]):
-        cv.check_type('mesh dimension', dimension, Iterable, Integral)
-        cv.check_length('mesh dimension', dimension, 1, 3)
+        cv.check_type("mesh dimension", dimension, Iterable, Integral)
+        cv.check_length("mesh dimension", dimension, 1, 3)
         self._dimension = dimension
 
     @property
@@ -1040,7 +1089,7 @@ class RegularMesh(StructuredMesh):
 
     @property
     def _axis_labels(self):
-        return ('x', 'y', 'z')[:self.n_dimension]
+        return ("x", "y", "z")[: self.n_dimension]
 
     @property
     def lower_left(self):
@@ -1048,12 +1097,16 @@ class RegularMesh(StructuredMesh):
 
     @lower_left.setter
     def lower_left(self, lower_left: Iterable[Real]):
-        cv.check_type('mesh lower_left', lower_left, Iterable, Real)
-        cv.check_length('mesh lower_left', lower_left, 1, 3)
+        cv.check_type("mesh lower_left", lower_left, Iterable, Real)
+        cv.check_length("mesh lower_left", lower_left, 1, 3)
         self._lower_left = lower_left
 
-        if self.upper_right is not None and any(np.isclose(self.upper_right, lower_left)):
-            raise ValueError("Mesh cannot have zero thickness in any dimension")
+        if self.upper_right is not None and any(
+            np.isclose(self.upper_right, lower_left)
+        ):
+            raise ValueError(
+                "Mesh cannot have zero thickness in any dimension"
+            )
 
     @property
     def upper_right(self):
@@ -1068,16 +1121,20 @@ class RegularMesh(StructuredMesh):
 
     @upper_right.setter
     def upper_right(self, upper_right: Iterable[Real]):
-        cv.check_type('mesh upper_right', upper_right, Iterable, Real)
-        cv.check_length('mesh upper_right', upper_right, 1, 3)
+        cv.check_type("mesh upper_right", upper_right, Iterable, Real)
+        cv.check_length("mesh upper_right", upper_right, 1, 3)
         self._upper_right = upper_right
 
         if self._width is not None:
             self._width = None
             warnings.warn("Unsetting width attribute.")
 
-        if self.lower_left is not None and any(np.isclose(self.lower_left, upper_right)):
-            raise ValueError("Mesh cannot have zero thickness in any dimension")
+        if self.lower_left is not None and any(
+            np.isclose(self.lower_left, upper_right)
+        ):
+            raise ValueError(
+                "Mesh cannot have zero thickness in any dimension"
+            )
 
     @property
     def width(self):
@@ -1087,13 +1144,13 @@ class RegularMesh(StructuredMesh):
             if self._lower_left is not None and self._dimension is not None:
                 us = self._upper_right
                 ls = self._lower_left
-                dims =  self._dimension
+                dims = self._dimension
                 return [(u - l) / d for u, l, d in zip(us, ls, dims)]
 
     @width.setter
     def width(self, width: Iterable[Real]):
-        cv.check_type('mesh width', width, Iterable, Real)
-        cv.check_length('mesh width', width, 1, 3)
+        cv.check_type("mesh width", width, Iterable, Real)
+        cv.check_length("mesh width", width, 1, 3)
         self._width = width
 
         if self._upper_right is not None:
@@ -1122,17 +1179,17 @@ class RegularMesh(StructuredMesh):
         ndim = len(self._dimension)
         if ndim == 3:
             nx, ny, nz = self.dimension
-            return ((x, y, z)
-                    for z in range(1, nz + 1)
-                    for y in range(1, ny + 1)
-                    for x in range(1, nx + 1))
+            return (
+                (x, y, z)
+                for z in range(1, nz + 1)
+                for y in range(1, ny + 1)
+                for x in range(1, nx + 1)
+            )
         elif ndim == 2:
             nx, ny = self.dimension
-            return ((x, y)
-                    for y in range(1, ny + 1)
-                    for x in range(1, nx + 1))
+            return ((x, y) for y in range(1, ny + 1) for x in range(1, nx + 1))
         else:
-            nx, = self.dimension
+            (nx,) = self.dimension
             return ((x,) for x in range(1, nx + 1))
 
     @property
@@ -1154,42 +1211,50 @@ class RegularMesh(StructuredMesh):
             yarr = np.linspace(y0, y1, ny + 1)
             return (xarr, yarr)
         else:
-            nx, = self.dimension
-            x0, = self.lower_left
-            x1, = self.upper_right
+            (nx,) = self.dimension
+            (x0,) = self.lower_left
+            (x1,) = self.upper_right
             return (np.linspace(x0, x1, nx + 1),)
 
     def __repr__(self):
         string = super().__repr__()
-        string += '{0: <16}{1}{2}\n'.format('\tDimensions', '=\t', self.n_dimension)
-        string += '{0: <16}{1}{2}\n'.format('\tVoxels', '=\t', self._dimension)
-        string += '{0: <16}{1}{2}\n'.format('\tLower left', '=\t', self._lower_left)
-        string += '{0: <16}{1}{2}\n'.format('\tUpper Right', '=\t', self.upper_right)
-        string += '{0: <16}{1}{2}\n'.format('\tWidth', '=\t', self.width)
+        string += "{0: <16}{1}{2}\n".format(
+            "\tDimensions", "=\t", self.n_dimension
+        )
+        string += "{0: <16}{1}{2}\n".format("\tVoxels", "=\t", self._dimension)
+        string += "{0: <16}{1}{2}\n".format(
+            "\tLower left", "=\t", self._lower_left
+        )
+        string += "{0: <16}{1}{2}\n".format(
+            "\tUpper Right", "=\t", self.upper_right
+        )
+        string += "{0: <16}{1}{2}\n".format("\tWidth", "=\t", self.width)
         return string
 
     @classmethod
     def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
         mesh = cls(mesh_id=mesh_id, name=name)
-        mesh.dimension = group['dimension'][()]
-        mesh.lower_left = group['lower_left'][()]
-        if 'width' in group:
-            mesh.width = group['width'][()]
-        elif 'upper_right' in group:
-            mesh.upper_right = group['upper_right'][()]
+        mesh.dimension = group["dimension"][()]
+        mesh.lower_left = group["lower_left"][()]
+        if "width" in group:
+            mesh.width = group["width"][()]
+        elif "upper_right" in group:
+            mesh.upper_right = group["upper_right"][()]
         else:
-            raise IOError('Invalid mesh: must have one of "upper_right" or "width"')
+            raise IOError(
+                'Invalid mesh: must have one of "upper_right" or "width"'
+            )
 
         return mesh
 
     @classmethod
     def from_rect_lattice(
         cls,
-        lattice: 'openmc.RectLattice',
+        lattice: "openmc.RectLattice",
         division: int = 1,
         mesh_id: int | None = None,
-        name: str = ''
+        name: str = "",
     ):
         """Create mesh from an existing rectangular lattice
 
@@ -1211,15 +1276,15 @@ class RegularMesh(StructuredMesh):
             RegularMesh instance
 
         """
-        cv.check_type('rectangular lattice', lattice, openmc.RectLattice)
+        cv.check_type("rectangular lattice", lattice, openmc.RectLattice)
 
         shape = np.array(lattice.shape)
-        width = lattice.pitch*shape
+        width = lattice.pitch * shape
 
         mesh = cls(mesh_id=mesh_id, name=name)
         mesh.lower_left = lattice.lower_left
         mesh.upper_right = lattice.lower_left + width
-        mesh.dimension = shape*division
+        mesh.dimension = shape * division
 
         return mesh
 
@@ -1229,7 +1294,7 @@ class RegularMesh(StructuredMesh):
         domain: HasBoundingBox | BoundingBox,
         dimension: Sequence[int] | int = 1000,
         mesh_id: int | None = None,
-        name: str = ''
+        name: str = "",
     ):
         """Create RegularMesh from a domain using its bounding box.
 
@@ -1259,11 +1324,13 @@ class RegularMesh(StructuredMesh):
         """
         if isinstance(domain, BoundingBox):
             bb = domain
-        elif hasattr(domain, 'bounding_box'):
+        elif hasattr(domain, "bounding_box"):
             bb = domain.bounding_box
         else:
-            raise TypeError("Domain must be a BoundingBox or have a "
-                            "bounding_box property")
+            raise TypeError(
+                "Domain must be a BoundingBox or have a "
+                "bounding_box property"
+            )
 
         mesh = cls(mesh_id=mesh_id, name=name)
         mesh.lower_left = bb[0]
@@ -1275,8 +1342,7 @@ class RegularMesh(StructuredMesh):
             ideal_cube_volume = bb.volume / dimension
             ideal_cube_size = ideal_cube_volume ** (1 / 3)
             dimension = [
-                max(1, int(round(side / ideal_cube_size)))
-                for side in bb.width
+                max(1, int(round(side / ideal_cube_size))) for side in bb.width
             ]
         mesh.dimension = dimension
 
@@ -1295,17 +1361,17 @@ class RegularMesh(StructuredMesh):
 
         if self._dimension is not None:
             subelement = ET.SubElement(element, "dimension")
-            subelement.text = ' '.join(map(str, self._dimension))
+            subelement.text = " ".join(map(str, self._dimension))
 
         subelement = ET.SubElement(element, "lower_left")
-        subelement.text = ' '.join(map(str, self._lower_left))
+        subelement.text = " ".join(map(str, self._lower_left))
 
         if self._upper_right is not None:
             subelement = ET.SubElement(element, "upper_right")
-            subelement.text = ' '.join(map(str, self._upper_right))
+            subelement.text = " ".join(map(str, self._upper_right))
         if self._width is not None:
             subelement = ET.SubElement(element, "width")
-            subelement.text = ' '.join(map(str, self._width))
+            subelement.text = " ".join(map(str, self._width))
 
         return element
 
@@ -1324,7 +1390,7 @@ class RegularMesh(StructuredMesh):
             Mesh generated from XML element
 
         """
-        mesh_id = int(get_text(elem, 'id'))
+        mesh_id = int(get_text(elem, "id"))
         mesh = cls(mesh_id=mesh_id)
 
         dimension = get_elem_list(elem, "dimension", int)
@@ -1374,23 +1440,29 @@ class RegularMesh(StructuredMesh):
 
         """
         if bc is None:
-            bc = ['reflective'] * 6
+            bc = ["reflective"] * 6
         if len(bc) not in (4, 6):
-            raise ValueError('Boundary condition must be of length 4 or 6')
+            raise ValueError("Boundary condition must be of length 4 or 6")
         for entry in bc:
-            cv.check_value('bc', entry, _BOUNDARY_TYPES)
+            cv.check_value("bc", entry, _BOUNDARY_TYPES)
 
         n_dim = self.n_dimension
 
         # Build the cell which will contain the lattice
-        xplanes = [openmc.XPlane(self.lower_left[0], boundary_type=bc[0]),
-                   openmc.XPlane(self.upper_right[0], boundary_type=bc[1])]
+        xplanes = [
+            openmc.XPlane(self.lower_left[0], boundary_type=bc[0]),
+            openmc.XPlane(self.upper_right[0], boundary_type=bc[1]),
+        ]
         if n_dim == 1:
-            yplanes = [openmc.YPlane(-1e10, boundary_type='reflective'),
-                       openmc.YPlane(1e10, boundary_type='reflective')]
+            yplanes = [
+                openmc.YPlane(-1e10, boundary_type="reflective"),
+                openmc.YPlane(1e10, boundary_type="reflective"),
+            ]
         else:
-            yplanes = [openmc.YPlane(self.lower_left[1], boundary_type=bc[2]),
-                       openmc.YPlane(self.upper_right[1], boundary_type=bc[3])]
+            yplanes = [
+                openmc.YPlane(self.lower_left[1], boundary_type=bc[2]),
+                openmc.YPlane(self.upper_right[1], boundary_type=bc[3]),
+            ]
 
         if n_dim <= 2:
             # Would prefer to have the z ranges be the max supported float, but
@@ -1400,15 +1472,21 @@ class RegularMesh(StructuredMesh):
             # inconsistency between what numpy uses as the max float and what
             # Fortran expects for a real(8), so this avoids code complication
             # and achieves the same goal.
-            zplanes = [openmc.ZPlane(-1e10, boundary_type='reflective'),
-                       openmc.ZPlane(1e10, boundary_type='reflective')]
+            zplanes = [
+                openmc.ZPlane(-1e10, boundary_type="reflective"),
+                openmc.ZPlane(1e10, boundary_type="reflective"),
+            ]
         else:
-            zplanes = [openmc.ZPlane(self.lower_left[2], boundary_type=bc[4]),
-                       openmc.ZPlane(self.upper_right[2], boundary_type=bc[5])]
+            zplanes = [
+                openmc.ZPlane(self.lower_left[2], boundary_type=bc[4]),
+                openmc.ZPlane(self.upper_right[2], boundary_type=bc[5]),
+            ]
         root_cell = openmc.Cell()
-        root_cell.region = ((+xplanes[0] & -xplanes[1]) &
-                            (+yplanes[0] & -yplanes[1]) &
-                            (+zplanes[0] & -zplanes[1]))
+        root_cell.region = (
+            (+xplanes[0] & -xplanes[1])
+            & (+yplanes[0] & -yplanes[1])
+            & (+zplanes[0] & -zplanes[1])
+        )
 
         # Build the universes which will be used for each of the (i,j,k)
         # locations within the mesh.
@@ -1428,16 +1506,18 @@ class RegularMesh(StructuredMesh):
         if n_dim == 1:
             universe_array = np.array([universes])
         elif n_dim == 2:
-            universe_array = np.empty(self.dimension[::-1],
-                                      dtype=openmc.Universe)
+            universe_array = np.empty(
+                self.dimension[::-1], dtype=openmc.Universe
+            )
             i = 0
             for y in range(self.dimension[1] - 1, -1, -1):
                 for x in range(self.dimension[0]):
                     universe_array[y][x] = universes[i]
                     i += 1
         else:
-            universe_array = np.empty(self.dimension[::-1],
-                                      dtype=openmc.Universe)
+            universe_array = np.empty(
+                self.dimension[::-1], dtype=openmc.Universe
+            )
             i = 0
             for z in range(self.dimension[2]):
                 for y in range(self.dimension[1] - 1, -1, -1):
@@ -1449,20 +1529,22 @@ class RegularMesh(StructuredMesh):
         if self.width is not None:
             lattice.pitch = self.width
         else:
-            dx = ((self.upper_right[0] - self.lower_left[0]) /
-                  self.dimension[0])
+            dx = (self.upper_right[0] - self.lower_left[0]) / self.dimension[0]
 
             if n_dim == 1:
                 lattice.pitch = [dx]
             elif n_dim == 2:
-                dy = ((self.upper_right[1] - self.lower_left[1]) /
-                      self.dimension[1])
+                dy = (
+                    self.upper_right[1] - self.lower_left[1]
+                ) / self.dimension[1]
                 lattice.pitch = [dx, dy]
             else:
-                dy = ((self.upper_right[1] - self.lower_left[1]) /
-                      self.dimension[1])
-                dz = ((self.upper_right[2] - self.lower_left[2]) /
-                      self.dimension[2])
+                dy = (
+                    self.upper_right[1] - self.lower_left[1]
+                ) / self.dimension[1]
+                dz = (
+                    self.upper_right[2] - self.lower_left[2]
+                ) / self.dimension[2]
                 lattice.pitch = [dx, dy, dz]
 
         # Fill Cell with the Lattice
@@ -1498,7 +1580,9 @@ class RegularMesh(StructuredMesh):
         upper_right = np.array(self.upper_right)
         dimension = np.array(self.dimension)
 
-        if np.any(coords_array < lower_left) or np.any(coords_array > upper_right):
+        if np.any(coords_array < lower_left) or np.any(
+            coords_array > upper_right
+        ):
             raise ValueError(
                 f"coords {tuple(coords_array)} are outside mesh bounds "
                 f"[{tuple(lower_left)}, {tuple(upper_right)}]"
@@ -1524,19 +1608,25 @@ class RegularMesh(StructuredMesh):
         # that every point has an (x, y, z) triple; extra coordinates are 0.
         coords_1d = []
         for i in range(ndim):
-            c = np.linspace(self.lower_left[i], self.upper_right[i], dims[i] + 1)
+            c = np.linspace(
+                self.lower_left[i], self.upper_right[i], dims[i] + 1
+            )
             coords_1d.append(c)
         while len(coords_1d) < 3:
             coords_1d.append(np.array([0.0]))
 
         # np.meshgrid with indexing='ij' → axis 0 = x, axis 1 = y, axis 2 = z
-        xx, yy, zz = np.meshgrid(*coords_1d, indexing='ij')
+        xx, yy, zz = np.meshgrid(*coords_1d, indexing="ij")
         # Flatten in Fortran (x-fastest) order for VTK point ordering
-        points = np.column_stack([
-            xx.ravel(order='F'),
-            yy.ravel(order='F'),
-            zz.ravel(order='F'),
-        ]).astype(np.float64)   # shape (n_points, 3)
+        points = np.column_stack(
+            [
+                xx.ravel(order="F"),
+                yy.ravel(order="F"),
+                zz.ravel(order="F"),
+            ]
+        ).astype(
+            np.float64
+        )  # shape (n_points, 3)
 
         with h5py.File(filename, "w") as f:
             root = f.create_group("VTKHDF")
@@ -1566,8 +1656,7 @@ class RegularMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})"
-                    )
+                        f" equal to the number of mesh cells ({self.n_elements})")
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -1579,8 +1668,10 @@ class RegularMesh(StructuredMesh):
 
 
 def Mesh(*args, **kwargs):
-    warnings.warn("Mesh has been renamed RegularMesh. Future versions of "
-                  "OpenMC will not accept the name Mesh.")
+    warnings.warn(
+        "Mesh has been renamed RegularMesh. Future versions of "
+        "OpenMC will not accept the name Mesh."
+    )
     return RegularMesh(*args, **kwargs)
 
 
@@ -1619,7 +1710,7 @@ class RectilinearMesh(StructuredMesh):
 
     """
 
-    def __init__(self, mesh_id: int = None, name: str = ''):
+    def __init__(self, mesh_id: int = None, name: str = ""):
         super().__init__(mesh_id, name)
 
         self._x_grid = None
@@ -1628,9 +1719,11 @@ class RectilinearMesh(StructuredMesh):
 
     @property
     def dimension(self):
-        return (len(self.x_grid) - 1,
-                len(self.y_grid) - 1,
-                len(self.z_grid) - 1)
+        return (
+            len(self.x_grid) - 1,
+            len(self.y_grid) - 1,
+            len(self.z_grid) - 1,
+        )
 
     @property
     def n_dimension(self):
@@ -1638,7 +1731,7 @@ class RectilinearMesh(StructuredMesh):
 
     @property
     def _axis_labels(self):
-        return ('x', 'y', 'z')
+        return ("x", "y", "z")
 
     @property
     def x_grid(self):
@@ -1646,7 +1739,7 @@ class RectilinearMesh(StructuredMesh):
 
     @x_grid.setter
     def x_grid(self, grid):
-        cv.check_type('mesh x_grid', grid, Iterable, Real)
+        cv.check_type("mesh x_grid", grid, Iterable, Real)
         self._x_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -1655,7 +1748,7 @@ class RectilinearMesh(StructuredMesh):
 
     @y_grid.setter
     def y_grid(self, grid):
-        cv.check_type('mesh y_grid', grid, Iterable, Real)
+        cv.check_type("mesh y_grid", grid, Iterable, Real)
         self._y_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -1664,7 +1757,7 @@ class RectilinearMesh(StructuredMesh):
 
     @z_grid.setter
     def z_grid(self, grid):
-        cv.check_type('mesh z_grid', grid, Iterable, Real)
+        cv.check_type("mesh z_grid", grid, Iterable, Real)
         self._z_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -1705,39 +1798,47 @@ class RectilinearMesh(StructuredMesh):
         nx = len(self.x_grid) - 1
         ny = len(self.y_grid) - 1
         nz = len(self.z_grid) - 1
-        return ((x, y, z)
-                for z in range(1, nz + 1)
-                for y in range(1, ny + 1)
-                for x in range(1, nx + 1))
+        return (
+            (x, y, z)
+            for z in range(1, nz + 1)
+            for y in range(1, ny + 1)
+            for x in range(1, nx + 1)
+        )
 
     def __repr__(self):
-        fmt = '{0: <16}{1}{2}\n'
+        fmt = "{0: <16}{1}{2}\n"
         string = super().__repr__()
-        string += fmt.format('\tDimensions', '=\t', self.n_dimension)
-        x_grid_str = str(self._x_grid) if self._x_grid is None else len(self._x_grid)
-        string += fmt.format('\tN X pnts:', '=\t', x_grid_str)
+        string += fmt.format("\tDimensions", "=\t", self.n_dimension)
+        x_grid_str = (
+            str(self._x_grid) if self._x_grid is None else len(self._x_grid)
+        )
+        string += fmt.format("\tN X pnts:", "=\t", x_grid_str)
         if self._x_grid is not None:
-            string += fmt.format('\tX Min:', '=\t', self._x_grid[0])
-            string += fmt.format('\tX Max:', '=\t', self._x_grid[-1])
-        y_grid_str = str(self._y_grid) if self._y_grid is None else len(self._y_grid)
-        string += fmt.format('\tN Y pnts:', '=\t', y_grid_str)
+            string += fmt.format("\tX Min:", "=\t", self._x_grid[0])
+            string += fmt.format("\tX Max:", "=\t", self._x_grid[-1])
+        y_grid_str = (
+            str(self._y_grid) if self._y_grid is None else len(self._y_grid)
+        )
+        string += fmt.format("\tN Y pnts:", "=\t", y_grid_str)
         if self._y_grid is not None:
-            string += fmt.format('\tY Min:', '=\t', self._y_grid[0])
-            string += fmt.format('\tY Max:', '=\t', self._y_grid[-1])
-        z_grid_str = str(self._z_grid) if self._z_grid is None else len(self._z_grid)
-        string += fmt.format('\tN Z pnts:', '=\t', z_grid_str)
+            string += fmt.format("\tY Min:", "=\t", self._y_grid[0])
+            string += fmt.format("\tY Max:", "=\t", self._y_grid[-1])
+        z_grid_str = (
+            str(self._z_grid) if self._z_grid is None else len(self._z_grid)
+        )
+        string += fmt.format("\tN Z pnts:", "=\t", z_grid_str)
         if self._z_grid is not None:
-            string += fmt.format('\tZ Min:', '=\t', self._z_grid[0])
-            string += fmt.format('\tZ Max:', '=\t', self._z_grid[-1])
+            string += fmt.format("\tZ Min:", "=\t", self._z_grid[0])
+            string += fmt.format("\tZ Max:", "=\t", self._z_grid[-1])
         return string
 
     @classmethod
     def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
         mesh = cls(mesh_id=mesh_id, name=name)
-        mesh.x_grid = group['x_grid'][()]
-        mesh.y_grid = group['y_grid'][()]
-        mesh.z_grid = group['z_grid'][()]
+        mesh.x_grid = group["x_grid"][()]
+        mesh.y_grid = group["y_grid"][()]
+        mesh.z_grid = group["z_grid"][()]
 
         return mesh
 
@@ -1756,7 +1857,7 @@ class RectilinearMesh(StructuredMesh):
             Rectilinear mesh object
 
         """
-        mesh_id = int(get_text(elem, 'id'))
+        mesh_id = int(get_text(elem, "id"))
         mesh = cls(mesh_id=mesh_id)
         mesh.x_grid = get_elem_list(elem, "x_grid", float)
         mesh.y_grid = get_elem_list(elem, "y_grid", float)
@@ -1778,13 +1879,13 @@ class RectilinearMesh(StructuredMesh):
         element.set("type", "rectilinear")
 
         subelement = ET.SubElement(element, "x_grid")
-        subelement.text = ' '.join(map(str, self.x_grid))
+        subelement.text = " ".join(map(str, self.x_grid))
 
         subelement = ET.SubElement(element, "y_grid")
-        subelement.text = ' '.join(map(str, self.y_grid))
+        subelement.text = " ".join(map(str, self.y_grid))
 
         subelement = ET.SubElement(element, "z_grid")
-        subelement.text = ' '.join(map(str, self.z_grid))
+        subelement.text = " ".join(map(str, self.z_grid))
 
         return element
 
@@ -1802,9 +1903,10 @@ class RectilinearMesh(StructuredMesh):
         nx, ny, nz = self.dimension
         vertex_dims = [nx + 1, ny + 1, nz + 1]
 
-        vertices = np.stack(np.meshgrid(
-            self.x_grid, self.y_grid, self.z_grid, indexing='ij'
-        ), axis=-1)
+        vertices = np.stack(
+            np.meshgrid(self.x_grid, self.y_grid, self.z_grid, indexing="ij"),
+            axis=-1,
+        )
 
         with h5py.File(filename, "w") as f:
             root = f.create_group("VTKHDF")
@@ -1813,7 +1915,9 @@ class RectilinearMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
+            root.create_dataset(
+                "Points", data=points.astype(np.float64), dtype="f8"
+            )
 
             cell_data_group = root.create_group("CellData")
 
@@ -1831,8 +1935,7 @@ class RectilinearMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})"
-                    )
+                        f" equal to the number of mesh cells ({self.n_elements})")
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -1906,10 +2009,10 @@ class CylindricalMesh(StructuredMesh):
         self,
         r_grid: Sequence[float],
         z_grid: Sequence[float],
-        phi_grid: Sequence[float] = (0, 2*pi),
-        origin: Sequence[float] = (0., 0., 0.),
+        phi_grid: Sequence[float] = (0, 2 * pi),
+        origin: Sequence[float] = (0.0, 0.0, 0.0),
         mesh_id: int | None = None,
-        name: str = '',
+        name: str = "",
     ):
         super().__init__(mesh_id, name)
 
@@ -1920,9 +2023,11 @@ class CylindricalMesh(StructuredMesh):
 
     @property
     def dimension(self):
-        return (len(self.r_grid) - 1,
-                len(self.phi_grid) - 1,
-                len(self.z_grid) - 1)
+        return (
+            len(self.r_grid) - 1,
+            len(self.phi_grid) - 1,
+            len(self.z_grid) - 1,
+        )
 
     @property
     def n_dimension(self):
@@ -1930,7 +2035,7 @@ class CylindricalMesh(StructuredMesh):
 
     @property
     def _axis_labels(self):
-        return ('r', 'phi', 'z')
+        return ("r", "phi", "z")
 
     @property
     def origin(self):
@@ -1938,7 +2043,7 @@ class CylindricalMesh(StructuredMesh):
 
     @origin.setter
     def origin(self, coords):
-        cv.check_type('mesh origin', coords, Iterable, Real)
+        cv.check_type("mesh origin", coords, Iterable, Real)
         cv.check_length("mesh origin", coords, 3)
         self._origin = np.asarray(coords)
 
@@ -1948,9 +2053,9 @@ class CylindricalMesh(StructuredMesh):
 
     @r_grid.setter
     def r_grid(self, grid):
-        cv.check_type('mesh r_grid', grid, Iterable, Real)
-        cv.check_length('mesh r_grid', grid, 2)
-        cv.check_increasing('mesh r_grid', grid)
+        cv.check_type("mesh r_grid", grid, Iterable, Real)
+        cv.check_length("mesh r_grid", grid, 2)
+        cv.check_increasing("mesh r_grid", grid)
         self._r_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -1959,11 +2064,11 @@ class CylindricalMesh(StructuredMesh):
 
     @phi_grid.setter
     def phi_grid(self, grid):
-        cv.check_type('mesh phi_grid', grid, Iterable, Real)
-        cv.check_length('mesh phi_grid', grid, 2)
-        cv.check_increasing('mesh phi_grid', grid)
+        cv.check_type("mesh phi_grid", grid, Iterable, Real)
+        cv.check_length("mesh phi_grid", grid, 2)
+        cv.check_increasing("mesh phi_grid", grid)
         grid = np.asarray(grid, dtype=float)
-        if np.any((grid < 0.0) | (grid > 2*pi)):
+        if np.any((grid < 0.0) | (grid > 2 * pi)):
             raise ValueError("phi_grid values must be in [0, 2π].")
         self._phi_grid = grid
 
@@ -1973,9 +2078,9 @@ class CylindricalMesh(StructuredMesh):
 
     @z_grid.setter
     def z_grid(self, grid):
-        cv.check_type('mesh z_grid', grid, Iterable, Real)
-        cv.check_length('mesh z_grid', grid, 2)
-        cv.check_increasing('mesh z_grid', grid)
+        cv.check_type("mesh z_grid", grid, Iterable, Real)
+        cv.check_length("mesh z_grid", grid, 2)
+        cv.check_increasing("mesh z_grid", grid)
         self._z_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -1987,53 +2092,66 @@ class CylindricalMesh(StructuredMesh):
         nr, np, nz = self.dimension
         np = len(self.phi_grid) - 1
         nz = len(self.z_grid) - 1
-        return ((r, p, z)
-                for z in range(1, nz + 1)
-                for p in range(1, np + 1)
-                for r in range(1, nr + 1))
+        return (
+            (r, p, z)
+            for z in range(1, nz + 1)
+            for p in range(1, np + 1)
+            for r in range(1, nr + 1)
+        )
 
     @property
     def lower_left(self):
-        return np.array((
-            self.origin[0] - self.r_grid[-1],
-            self.origin[1] - self.r_grid[-1],
-            self.origin[2] + self.z_grid[0]
-        ))
+        return np.array(
+            (
+                self.origin[0] - self.r_grid[-1],
+                self.origin[1] - self.r_grid[-1],
+                self.origin[2] + self.z_grid[0],
+            )
+        )
 
     @property
     def upper_right(self):
-        return np.array((
-            self.origin[0] + self.r_grid[-1],
-            self.origin[1] + self.r_grid[-1],
-            self.origin[2] + self.z_grid[-1]
-        ))
+        return np.array(
+            (
+                self.origin[0] + self.r_grid[-1],
+                self.origin[1] + self.r_grid[-1],
+                self.origin[2] + self.z_grid[-1],
+            )
+        )
 
     def __repr__(self):
-        fmt = '{0: <16}{1}{2}\n'
+        fmt = "{0: <16}{1}{2}\n"
         string = super().__repr__()
-        string += fmt.format('\tDimensions', '=\t', self.n_dimension)
-        string += fmt.format('\tOrigin', '=\t', self.origin)
-        r_grid_str = str(self._r_grid) if self._r_grid is None else len(self._r_grid)
-        string += fmt.format('\tN R pnts:', '=\t', r_grid_str)
+        string += fmt.format("\tDimensions", "=\t", self.n_dimension)
+        string += fmt.format("\tOrigin", "=\t", self.origin)
+        r_grid_str = (
+            str(self._r_grid) if self._r_grid is None else len(self._r_grid)
+        )
+        string += fmt.format("\tN R pnts:", "=\t", r_grid_str)
         if self._r_grid is not None:
-            string += fmt.format('\tR Min:', '=\t', self._r_grid[0])
-            string += fmt.format('\tR Max:', '=\t', self._r_grid[-1])
-        phi_grid_str = str(self._phi_grid) if self._phi_grid is None else len(self._phi_grid)
-        string += fmt.format('\tN Phi pnts:', '=\t', phi_grid_str)
+            string += fmt.format("\tR Min:", "=\t", self._r_grid[0])
+            string += fmt.format("\tR Max:", "=\t", self._r_grid[-1])
+        phi_grid_str = (
+            str(self._phi_grid)
+            if self._phi_grid is None
+            else len(self._phi_grid)
+        )
+        string += fmt.format("\tN Phi pnts:", "=\t", phi_grid_str)
         if self._phi_grid is not None:
-            string += fmt.format('\tPhi Min:', '=\t', self._phi_grid[0])
-            string += fmt.format('\tPhi Max:', '=\t', self._phi_grid[-1])
-        z_grid_str = str(self._z_grid) if self._z_grid is None else len(self._z_grid)
-        string += fmt.format('\tN Z pnts:', '=\t', z_grid_str)
+            string += fmt.format("\tPhi Min:", "=\t", self._phi_grid[0])
+            string += fmt.format("\tPhi Max:", "=\t", self._phi_grid[-1])
+        z_grid_str = (
+            str(self._z_grid) if self._z_grid is None else len(self._z_grid)
+        )
+        string += fmt.format("\tN Z pnts:", "=\t", z_grid_str)
         if self._z_grid is not None:
-            string += fmt.format('\tZ Min:', '=\t', self._z_grid[0])
-            string += fmt.format('\tZ Max:', '=\t', self._z_grid[-1])
+            string += fmt.format("\tZ Min:", "=\t", self._z_grid[0])
+            string += fmt.format("\tZ Max:", "=\t", self._z_grid[-1])
         return string
 
     def get_indices_at_coords(
-            self,
-            coords: Sequence[float]
-        ) -> tuple[int, int, int]:
+        self, coords: Sequence[float]
+    ) -> tuple[int, int, int]:
         """Finds the index of the mesh element at the specified coordinates.
 
         .. versionadded:: 0.15.0
@@ -2049,14 +2167,19 @@ class CylindricalMesh(StructuredMesh):
             The r, phi, z indices
 
         """
-        r_value_from_origin = sqrt((coords[0]-self.origin[0])**2 + (coords[1]-self.origin[1])**2)
+        r_value_from_origin = sqrt(
+            (coords[0] - self.origin[0]) ** 2
+            + (coords[1] - self.origin[1]) ** 2
+        )
 
-        if r_value_from_origin < self.r_grid[0] or r_value_from_origin > self.r_grid[-1]:
+        if (
+            r_value_from_origin < self.r_grid[0]
+            or r_value_from_origin > self.r_grid[-1]
+        ):
             raise ValueError(
-                f'The specified x, y ({coords[0]}, {coords[1]}) combine to give an r value of '
-                f'{r_value_from_origin} from the origin of {self.origin}.which '
-                f'is outside the origin absolute r grid values {self.r_grid}.'
-            )
+                f"The specified x, y ({coords[0]}, {coords[1]}) combine to give an r value of "
+                f"{r_value_from_origin} from the origin of {self.origin}.which "
+                f"is outside the origin absolute r grid values {self.r_grid}.")
 
         r_index = np.searchsorted(self.r_grid, r_value_from_origin) - 1
 
@@ -2064,9 +2187,8 @@ class CylindricalMesh(StructuredMesh):
 
         if coords[2] < z_grid_values[0] or coords[2] > z_grid_values[-1]:
             raise ValueError(
-                f'The specified z value ({coords[2]}) from the z origin of '
-                f'{self.origin[-1]} is outside of the absolute z grid range {z_grid_values}.'
-            )
+                f"The specified z value ({coords[2]}) from the z origin of "
+                f"{self.origin[-1]} is outside of the absolute z grid range {z_grid_values}.")
 
         z_index = np.argmax(z_grid_values > coords[2]) - 1
 
@@ -2085,9 +2207,8 @@ class CylindricalMesh(StructuredMesh):
 
         if phi_value < phi_grid_values[0] or phi_value > phi_grid_values[-1]:
             raise ValueError(
-                f'The phi value ({phi_value}) resulting from the specified x, y '
-                f'values is outside of the absolute  phi grid range {phi_grid_values}.'
-            )
+                f"The phi value ({phi_value}) resulting from the specified x, y "
+                f"values is outside of the absolute  phi grid range {phi_grid_values}.")
         phi_index = np.argmax(phi_grid_values > phi_value) - 1
 
         return (r_index, phi_index, z_index)
@@ -2098,12 +2219,12 @@ class CylindricalMesh(StructuredMesh):
         mesh = cls(
             mesh_id=mesh_id,
             name=name,
-            r_grid = group['r_grid'][()],
-            phi_grid = group['phi_grid'][()],
-            z_grid = group['z_grid'][()],
+            r_grid=group["r_grid"][()],
+            phi_grid=group["phi_grid"][()],
+            z_grid=group["z_grid"][()],
         )
-        if 'origin' in group:
-            mesh.origin = group['origin'][()]
+        if "origin" in group:
+            mesh.origin = group["origin"][()]
 
         return mesh
 
@@ -2113,9 +2234,9 @@ class CylindricalMesh(StructuredMesh):
         domain: HasBoundingBox | BoundingBox,
         dimension: Sequence[int] = (10, 10, 10),
         mesh_id: int | None = None,
-        phi_grid_bounds: Sequence[float] = (0.0, 2*pi),
-        name: str = '',
-        enclose_domain: bool = False
+        phi_grid_bounds: Sequence[float] = (0.0, 2 * pi),
+        name: str = "",
+        enclose_domain: bool = False,
     ):
         """Create CylindricalMesh from a domain using its bounding box.
 
@@ -2148,31 +2269,25 @@ class CylindricalMesh(StructuredMesh):
         """
         if isinstance(domain, BoundingBox):
             cached_bb = domain
-        elif hasattr(domain, 'bounding_box'):
+        elif hasattr(domain, "bounding_box"):
             cached_bb = domain.bounding_box
         else:
-            raise TypeError("Domain must be a BoundingBox or have a "
-                            "bounding_box property")
+            raise TypeError(
+                "Domain must be a BoundingBox or have a "
+                "bounding_box property"
+            )
 
         if enclose_domain:
             outer_radius = 0.5 * np.linalg.norm(cached_bb.width[:2])
         else:
             outer_radius = 0.5 * min(cached_bb.width[:2])
 
-        r_grid = np.linspace(
-            0,
-            outer_radius,
-            num=dimension[0]+1
-        )
+        r_grid = np.linspace(0, outer_radius, num=dimension[0] + 1)
         phi_grid = np.linspace(
-            phi_grid_bounds[0],
-            phi_grid_bounds[1],
-            num=dimension[1]+1
+            phi_grid_bounds[0], phi_grid_bounds[1], num=dimension[1] + 1
         )
         z_grid = np.linspace(
-            cached_bb[0][2],
-            cached_bb[1][2],
-            num=dimension[2]+1
+            cached_bb[0][2], cached_bb[1][2], num=dimension[2] + 1
         )
         origin = (cached_bb.center[0], cached_bb.center[1], z_grid[0])
 
@@ -2185,7 +2300,7 @@ class CylindricalMesh(StructuredMesh):
             phi_grid=phi_grid,
             mesh_id=mesh_id,
             name=name,
-            origin=origin
+            origin=origin,
         )
 
         return mesh
@@ -2204,16 +2319,16 @@ class CylindricalMesh(StructuredMesh):
         element.set("type", "cylindrical")
 
         subelement = ET.SubElement(element, "r_grid")
-        subelement.text = ' '.join(map(str, self.r_grid))
+        subelement.text = " ".join(map(str, self.r_grid))
 
         subelement = ET.SubElement(element, "phi_grid")
-        subelement.text = ' '.join(map(str, self.phi_grid))
+        subelement.text = " ".join(map(str, self.phi_grid))
 
         subelement = ET.SubElement(element, "z_grid")
-        subelement.text = ' '.join(map(str, self.z_grid))
+        subelement.text = " ".join(map(str, self.z_grid))
 
         subelement = ET.SubElement(element, "origin")
-        subelement.text = ' '.join(map(str, self.origin))
+        subelement.text = " ".join(map(str, self.origin))
 
         return element
 
@@ -2233,12 +2348,12 @@ class CylindricalMesh(StructuredMesh):
 
         """
 
-        mesh_id = int(get_text(elem, 'id'))
+        mesh_id = int(get_text(elem, "id"))
         mesh = cls(
-            r_grid = get_elem_list(elem, "r_grid", float),
-            phi_grid = get_elem_list(elem, "phi_grid", float),
-            z_grid = get_elem_list(elem, "z_grid", float),
-            origin = get_elem_list(elem, "origin", float) or [0., 0., 0.],
+            r_grid=get_elem_list(elem, "r_grid", float),
+            phi_grid=get_elem_list(elem, "phi_grid", float),
+            z_grid=get_elem_list(elem, "z_grid", float),
+            origin=get_elem_list(elem, "origin", float) or [0.0, 0.0, 0.0],
             mesh_id=mesh_id,
         )
 
@@ -2255,7 +2370,7 @@ class CylindricalMesh(StructuredMesh):
 
         """
         self._volume_dim_check()
-        V_r = np.diff(np.asarray(self.r_grid)**2 / 2)
+        V_r = np.diff(np.asarray(self.r_grid) ** 2 / 2)
         V_p = np.diff(self.phi_grid)
         V_z = np.diff(self.z_grid)
 
@@ -2263,24 +2378,30 @@ class CylindricalMesh(StructuredMesh):
 
     @property
     def vertices(self):
-        warnings.warn('Cartesian coordinates are returned from this property as of version 0.14.0')
-        return self._convert_to_cartesian(self.vertices_cylindrical, self.origin)
+        warnings.warn(
+            "Cartesian coordinates are returned from this property as of version 0.14.0"
+        )
+        return self._convert_to_cartesian(
+            self.vertices_cylindrical, self.origin
+        )
 
     @property
     def vertices_cylindrical(self):
-        """Returns vertices of the mesh in cylindrical coordinates.
-        """
+        """Returns vertices of the mesh in cylindrical coordinates."""
         return super().vertices
 
     @property
     def centroids(self):
-        warnings.warn('Cartesian coordinates are returned from this property as of version 0.14.0')
-        return self._convert_to_cartesian(self.centroids_cylindrical, self.origin)
+        warnings.warn(
+            "Cartesian coordinates are returned from this property as of version 0.14.0"
+        )
+        return self._convert_to_cartesian(
+            self.centroids_cylindrical, self.origin
+        )
 
     @property
     def centroids_cylindrical(self):
-        """Returns centroids of the mesh in cylindrical coordinates.
-        """
+        """Returns centroids of the mesh in cylindrical coordinates."""
         return super().centroids
 
     @staticmethod
@@ -2300,7 +2421,9 @@ class CylindricalMesh(StructuredMesh):
         nr, nphi, nz = self.dimension
         vertex_dims = [nr + 1, nphi + 1, nz + 1]
 
-        R, Phi, Z = np.meshgrid(self.r_grid, self.phi_grid, self.z_grid, indexing='ij')
+        R, Phi, Z = np.meshgrid(
+            self.r_grid, self.phi_grid, self.z_grid, indexing="ij"
+        )
         X = R * np.cos(Phi) + self.origin[0]
         Y = R * np.sin(Phi) + self.origin[1]
         Z = Z + self.origin[2]
@@ -2313,7 +2436,9 @@ class CylindricalMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
+            root.create_dataset(
+                "Points", data=points.astype(np.float64), dtype="f8"
+            )
 
             cell_data_group = root.create_group("CellData")
 
@@ -2331,8 +2456,7 @@ class CylindricalMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})"
-                    )
+                        f" equal to the number of mesh cells ({self.n_elements})")
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -2406,11 +2530,11 @@ class SphericalMesh(StructuredMesh):
     def __init__(
         self,
         r_grid: Sequence[float],
-        phi_grid: Sequence[float] = (0, 2*pi),
+        phi_grid: Sequence[float] = (0, 2 * pi),
         theta_grid: Sequence[float] = (0, pi),
-        origin: Sequence[float] = (0., 0., 0.),
+        origin: Sequence[float] = (0.0, 0.0, 0.0),
         mesh_id: int | None = None,
-        name: str = '',
+        name: str = "",
     ):
         super().__init__(mesh_id, name)
 
@@ -2421,9 +2545,11 @@ class SphericalMesh(StructuredMesh):
 
     @property
     def dimension(self):
-        return (len(self.r_grid) - 1,
-                len(self.theta_grid) - 1,
-                len(self.phi_grid) - 1)
+        return (
+            len(self.r_grid) - 1,
+            len(self.theta_grid) - 1,
+            len(self.phi_grid) - 1,
+        )
 
     @property
     def n_dimension(self):
@@ -2431,7 +2557,7 @@ class SphericalMesh(StructuredMesh):
 
     @property
     def _axis_labels(self):
-        return ('r', 'theta', 'phi')
+        return ("r", "theta", "phi")
 
     @property
     def origin(self):
@@ -2439,7 +2565,7 @@ class SphericalMesh(StructuredMesh):
 
     @origin.setter
     def origin(self, coords):
-        cv.check_type('mesh origin', coords, Iterable, Real)
+        cv.check_type("mesh origin", coords, Iterable, Real)
         cv.check_length("mesh origin", coords, 3)
         self._origin = np.asarray(coords, dtype=float)
 
@@ -2449,9 +2575,9 @@ class SphericalMesh(StructuredMesh):
 
     @r_grid.setter
     def r_grid(self, grid):
-        cv.check_type('mesh r_grid', grid, Iterable, Real)
-        cv.check_length('mesh r_grid', grid, 2)
-        cv.check_increasing('mesh r_grid', grid)
+        cv.check_type("mesh r_grid", grid, Iterable, Real)
+        cv.check_length("mesh r_grid", grid, 2)
+        cv.check_increasing("mesh r_grid", grid)
         self._r_grid = np.asarray(grid, dtype=float)
 
     @property
@@ -2460,9 +2586,9 @@ class SphericalMesh(StructuredMesh):
 
     @theta_grid.setter
     def theta_grid(self, grid):
-        cv.check_type('mesh theta_grid', grid, Iterable, Real)
-        cv.check_length('mesh theta_grid', grid, 2)
-        cv.check_increasing('mesh theta_grid', grid)
+        cv.check_type("mesh theta_grid", grid, Iterable, Real)
+        cv.check_length("mesh theta_grid", grid, 2)
+        cv.check_increasing("mesh theta_grid", grid)
         grid = np.asarray(grid, dtype=float)
         if np.any((grid < 0.0) | (grid > pi)):
             raise ValueError("theta_grid values must be in [0, π].")
@@ -2474,11 +2600,11 @@ class SphericalMesh(StructuredMesh):
 
     @phi_grid.setter
     def phi_grid(self, grid):
-        cv.check_type('mesh phi_grid', grid, Iterable, Real)
-        cv.check_length('mesh phi_grid', grid, 2)
-        cv.check_increasing('mesh phi_grid', grid)
+        cv.check_type("mesh phi_grid", grid, Iterable, Real)
+        cv.check_length("mesh phi_grid", grid, 2)
+        cv.check_increasing("mesh phi_grid", grid)
         grid = np.asarray(grid, dtype=float)
-        if np.any((grid < 0.0) | (grid > 2*pi)):
+        if np.any((grid < 0.0) | (grid > 2 * pi)):
             raise ValueError("phi_grid values must be in [0, 2π].")
         self._phi_grid = grid
 
@@ -2491,55 +2617,71 @@ class SphericalMesh(StructuredMesh):
         nr, nt, np = self.dimension
         nt = len(self.theta_grid) - 1
         np = len(self.phi_grid) - 1
-        return ((r, t, p)
-                for p in range(1, np + 1)
-                for t in range(1, nt + 1)
-                for r in range(1, nr + 1))
+        return (
+            (r, t, p)
+            for p in range(1, np + 1)
+            for t in range(1, nt + 1)
+            for r in range(1, nr + 1)
+        )
 
     @property
     def lower_left(self):
         r = self.r_grid[-1]
-        return np.array((self.origin[0] - r, self.origin[1] - r, self.origin[2] - r))
+        return np.array(
+            (self.origin[0] - r, self.origin[1] - r, self.origin[2] - r)
+        )
 
     @property
     def upper_right(self):
         r = self.r_grid[-1]
-        return np.array((self.origin[0] + r, self.origin[1] + r, self.origin[2] + r))
+        return np.array(
+            (self.origin[0] + r, self.origin[1] + r, self.origin[2] + r)
+        )
 
     def __repr__(self):
-        fmt = '{0: <16}{1}{2}\n'
+        fmt = "{0: <16}{1}{2}\n"
         string = super().__repr__()
-        string += fmt.format('\tDimensions', '=\t', self.n_dimension)
-        string += fmt.format('\tOrigin', '=\t', self.origin)
-        r_grid_str = str(self._r_grid) if self._r_grid is None else len(self._r_grid)
-        string += fmt.format('\tN R pnts:', '=\t', r_grid_str)
+        string += fmt.format("\tDimensions", "=\t", self.n_dimension)
+        string += fmt.format("\tOrigin", "=\t", self.origin)
+        r_grid_str = (
+            str(self._r_grid) if self._r_grid is None else len(self._r_grid)
+        )
+        string += fmt.format("\tN R pnts:", "=\t", r_grid_str)
         if self._r_grid is not None:
-            string += fmt.format('\tR Min:', '=\t', self._r_grid[0])
-            string += fmt.format('\tR Max:', '=\t', self._r_grid[-1])
-        theta_grid_str = str(self._theta_grid) if self._theta_grid is None else len(self._theta_grid)
-        string += fmt.format('\tN Theta pnts:', '=\t', theta_grid_str)
+            string += fmt.format("\tR Min:", "=\t", self._r_grid[0])
+            string += fmt.format("\tR Max:", "=\t", self._r_grid[-1])
+        theta_grid_str = (
+            str(self._theta_grid)
+            if self._theta_grid is None
+            else len(self._theta_grid)
+        )
+        string += fmt.format("\tN Theta pnts:", "=\t", theta_grid_str)
         if self._theta_grid is not None:
-            string += fmt.format('\tTheta Min:', '=\t', self._theta_grid[0])
-            string += fmt.format('\tTheta Max:', '=\t', self._theta_grid[-1])
-        phi_grid_str = str(self._phi_grid) if self._phi_grid is None else len(self._phi_grid)
-        string += fmt.format('\tN Phi pnts:', '=\t', phi_grid_str)
+            string += fmt.format("\tTheta Min:", "=\t", self._theta_grid[0])
+            string += fmt.format("\tTheta Max:", "=\t", self._theta_grid[-1])
+        phi_grid_str = (
+            str(self._phi_grid)
+            if self._phi_grid is None
+            else len(self._phi_grid)
+        )
+        string += fmt.format("\tN Phi pnts:", "=\t", phi_grid_str)
         if self._phi_grid is not None:
-            string += fmt.format('\tPhi Min:', '=\t', self._phi_grid[0])
-            string += fmt.format('\tPhi Max:', '=\t', self._phi_grid[-1])
+            string += fmt.format("\tPhi Min:", "=\t", self._phi_grid[0])
+            string += fmt.format("\tPhi Max:", "=\t", self._phi_grid[-1])
         return string
 
     @classmethod
     def from_hdf5(cls, group: h5py.Group, mesh_id: int, name: str):
         # Read and assign mesh properties
         mesh = cls(
-            r_grid = group['r_grid'][()],
-            theta_grid = group['theta_grid'][()],
-            phi_grid = group['phi_grid'][()],
+            r_grid=group["r_grid"][()],
+            theta_grid=group["theta_grid"][()],
+            phi_grid=group["phi_grid"][()],
             mesh_id=mesh_id,
-            name=name
+            name=name,
         )
-        if 'origin' in group:
-            mesh.origin = group['origin'][()]
+        if "origin" in group:
+            mesh.origin = group["origin"][()]
 
         return mesh
 
@@ -2549,10 +2691,10 @@ class SphericalMesh(StructuredMesh):
         domain: HasBoundingBox | BoundingBox,
         dimension: Sequence[int] = (10, 10, 10),
         mesh_id: int | None = None,
-        phi_grid_bounds: Sequence[float] = (0.0, 2*pi),
+        phi_grid_bounds: Sequence[float] = (0.0, 2 * pi),
         theta_grid_bounds: Sequence[float] = (0.0, pi),
-        name: str = '',
-        enclose_domain: bool = False
+        name: str = "",
+        enclose_domain: bool = False,
     ):
         """Create SphericalMesh from a domain using its bounding box.
 
@@ -2589,11 +2731,13 @@ class SphericalMesh(StructuredMesh):
         """
         if isinstance(domain, BoundingBox):
             cached_bb = domain
-        elif hasattr(domain, 'bounding_box'):
+        elif hasattr(domain, "bounding_box"):
             cached_bb = domain.bounding_box
         else:
-            raise TypeError("Domain must be a BoundingBox or have a "
-                            "bounding_box property")
+            raise TypeError(
+                "Domain must be a BoundingBox or have a "
+                "bounding_box property"
+            )
 
         if enclose_domain:
             outer_radius = 0.5 * np.linalg.norm(cached_bb.width)
@@ -2602,20 +2746,23 @@ class SphericalMesh(StructuredMesh):
 
         r_grid = np.linspace(0, outer_radius, num=dimension[0] + 1)
         theta_grid = np.linspace(
-            theta_grid_bounds[0],
-            theta_grid_bounds[1],
-            num=dimension[1]+1
+            theta_grid_bounds[0], theta_grid_bounds[1], num=dimension[1] + 1
         )
         phi_grid = np.linspace(
-            phi_grid_bounds[0],
-            phi_grid_bounds[1],
-            num=dimension[2]+1
+            phi_grid_bounds[0], phi_grid_bounds[1], num=dimension[2] + 1
         )
-        origin = np.array([
-            cached_bb.center[0], cached_bb.center[1], cached_bb.center[2]])
+        origin = np.array(
+            [cached_bb.center[0], cached_bb.center[1], cached_bb.center[2]]
+        )
 
-        return cls(r_grid=r_grid, phi_grid=phi_grid, theta_grid=theta_grid,
-                   origin=origin, mesh_id=mesh_id, name=name)
+        return cls(
+            r_grid=r_grid,
+            phi_grid=phi_grid,
+            theta_grid=theta_grid,
+            origin=origin,
+            mesh_id=mesh_id,
+            name=name,
+        )
 
     def to_xml_element(self):
         """Return XML representation of the mesh
@@ -2631,16 +2778,16 @@ class SphericalMesh(StructuredMesh):
         element.set("type", "spherical")
 
         subelement = ET.SubElement(element, "r_grid")
-        subelement.text = ' '.join(map(str, self.r_grid))
+        subelement.text = " ".join(map(str, self.r_grid))
 
         subelement = ET.SubElement(element, "theta_grid")
-        subelement.text = ' '.join(map(str, self.theta_grid))
+        subelement.text = " ".join(map(str, self.theta_grid))
 
         subelement = ET.SubElement(element, "phi_grid")
-        subelement.text = ' '.join(map(str, self.phi_grid))
+        subelement.text = " ".join(map(str, self.phi_grid))
 
         subelement = ET.SubElement(element, "origin")
-        subelement.text = ' '.join(map(str, self.origin))
+        subelement.text = " ".join(map(str, self.origin))
 
         return element
 
@@ -2659,13 +2806,13 @@ class SphericalMesh(StructuredMesh):
             Spherical mesh object
 
         """
-        mesh_id = int(get_text(elem, 'id'))
+        mesh_id = int(get_text(elem, "id"))
         mesh = cls(
             mesh_id=mesh_id,
-            r_grid = get_elem_list(elem, "r_grid", float),
-            theta_grid = get_elem_list(elem, "theta_grid", float),
-            phi_grid = get_elem_list(elem, "phi_grid", float),
-            origin = get_elem_list(elem, "origin", float) or [0., 0., 0.],
+            r_grid=get_elem_list(elem, "r_grid", float),
+            theta_grid=get_elem_list(elem, "theta_grid", float),
+            phi_grid=get_elem_list(elem, "phi_grid", float),
+            origin=get_elem_list(elem, "origin", float) or [0.0, 0.0, 0.0],
         )
 
         return mesh
@@ -2681,7 +2828,7 @@ class SphericalMesh(StructuredMesh):
 
         """
         self._volume_dim_check()
-        V_r = np.diff(np.asarray(self.r_grid)**3 / 3)
+        V_r = np.diff(np.asarray(self.r_grid) ** 3 / 3)
         V_t = np.diff(-np.cos(self.theta_grid))
         V_p = np.diff(self.phi_grid)
 
@@ -2689,26 +2836,29 @@ class SphericalMesh(StructuredMesh):
 
     @property
     def vertices(self):
-        warnings.warn('Cartesian coordinates are returned from this property as of version 0.14.0')
+        warnings.warn(
+            "Cartesian coordinates are returned from this property as of version 0.14.0"
+        )
         return self._convert_to_cartesian(self.vertices_spherical, self.origin)
 
     @property
     def vertices_spherical(self):
-        """Returns vertices of the mesh in cylindrical coordinates.
-        """
+        """Returns vertices of the mesh in cylindrical coordinates."""
         return super().vertices
 
     @property
     def centroids(self):
-        warnings.warn('Cartesian coordinates are returned from this property as of version 0.14.0')
-        return self._convert_to_cartesian(self.centroids_spherical, self.origin)
+        warnings.warn(
+            "Cartesian coordinates are returned from this property as of version 0.14.0"
+        )
+        return self._convert_to_cartesian(
+            self.centroids_spherical, self.origin
+        )
 
     @property
     def centroids_spherical(self):
-        """Returns centroids of the mesh in cylindrical coordinates.
-        """
+        """Returns centroids of the mesh in cylindrical coordinates."""
         return super().centroids
-
 
     @staticmethod
     def _convert_to_cartesian(arr, origin: Sequence[float]):
@@ -2735,7 +2885,7 @@ class SphericalMesh(StructuredMesh):
         vertex_dims = [nr + 1, ntheta + 1, nphi + 1]
 
         R, Theta, Phi = np.meshgrid(
-            self.r_grid, self.theta_grid, self.phi_grid, indexing='ij'
+            self.r_grid, self.theta_grid, self.phi_grid, indexing="ij"
         )
         X = R * np.sin(Theta) * np.cos(Phi) + self.origin[0]
         Y = R * np.sin(Theta) * np.sin(Phi) + self.origin[1]
@@ -2749,7 +2899,9 @@ class SphericalMesh(StructuredMesh):
             root.create_dataset("Dimensions", data=vertex_dims, dtype="i8")
 
             points = vertices.reshape(-1, 3)
-            root.create_dataset("Points", data=points.astype(np.float64), dtype="f8")
+            root.create_dataset(
+                "Points", data=points.astype(np.float64), dtype="f8"
+            )
 
             cell_data_group = root.create_group("CellData")
 
@@ -2767,8 +2919,7 @@ class SphericalMesh(StructuredMesh):
                 if data.size != self.n_elements:
                     raise ValueError(
                         f"The size of the dataset '{name}' ({data.size}) should be"
-                        f" equal to the number of mesh cells ({self.n_elements})"
-                    )
+                        f" equal to the number of mesh cells ({self.n_elements})")
 
                 if volume_normalization:
                     data = data / self.volumes
@@ -2783,10 +2934,13 @@ def require_statepoint_data(func):
     @wraps(func)
     def wrapper(self: UnstructuredMesh, *args, **kwargs):
         if not self._has_statepoint_data:
-            raise AttributeError(f'The "{func.__name__}" property requires '
-                                 'information about this mesh to be loaded '
-                                 'from a statepoint file.')
+            raise AttributeError(
+                f'The "{func.__name__}" property requires '
+                "information about this mesh to be loaded "
+                "from a statepoint file."
+            )
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -2868,9 +3022,15 @@ class UnstructuredMesh(MeshBase):
     _LINEAR_HEX = 1
     _VTK_TETRA = 10
 
-    def __init__(self, filename: PathLike, library: str, mesh_id: int | None = None,
-                 name: str = '', length_multiplier: float = 1.0,
-                 options: str | None = None):
+    def __init__(
+        self,
+        filename: PathLike,
+        library: str,
+        mesh_id: int | None = None,
+        name: str = "",
+        length_multiplier: float = 1.0,
+        options: str | None = None,
+    ):
         super().__init__(mesh_id, name)
         self.filename = filename
         self._volumes = None
@@ -2889,7 +3049,7 @@ class UnstructuredMesh(MeshBase):
 
     @filename.setter
     def filename(self, filename):
-        cv.check_type('Unstructured Mesh filename', filename, PathLike)
+        cv.check_type("Unstructured Mesh filename", filename, PathLike)
         self._filename = input_path(filename)
 
     @property
@@ -2898,7 +3058,7 @@ class UnstructuredMesh(MeshBase):
 
     @library.setter
     def library(self, lib: str):
-        cv.check_value('Unstructured mesh library', lib, ('moab', 'libmesh'))
+        cv.check_value("Unstructured mesh library", lib, ("moab", "libmesh"))
         self._library = lib
 
     @property
@@ -2907,7 +3067,7 @@ class UnstructuredMesh(MeshBase):
 
     @options.setter
     def options(self, options: str | None):
-        cv.check_type('options', options, (str, type(None)))
+        cv.check_type("options", options, (str, type(None)))
         self._options = options
 
     @property
@@ -2977,13 +3137,15 @@ class UnstructuredMesh(MeshBase):
     @require_statepoint_data
     def n_elements(self):
         if self._n_elements is None:
-            raise RuntimeError("No information about this mesh has "
-                               "been loaded from a statepoint file.")
+            raise RuntimeError(
+                "No information about this mesh has "
+                "been loaded from a statepoint file."
+            )
         return self._n_elements
 
     @n_elements.setter
     def n_elements(self, val: int):
-        cv.check_type('Number of elements', val, Integral)
+        cv.check_type("Number of elements", val, Integral)
         self._n_elements = val
 
     @property
@@ -2992,9 +3154,9 @@ class UnstructuredMesh(MeshBase):
 
     @length_multiplier.setter
     def length_multiplier(self, length_multiplier):
-        cv.check_type("Unstructured mesh length multiplier",
-                      length_multiplier,
-                      Real)
+        cv.check_type(
+            "Unstructured mesh length multiplier", length_multiplier, Real
+        )
         self._length_multiplier = length_multiplier
 
     @property
@@ -3007,7 +3169,7 @@ class UnstructuredMesh(MeshBase):
 
     @property
     def _axis_labels(self):
-        return ('element_index',)
+        return ("element_index",)
 
     @property
     @require_statepoint_data
@@ -3020,13 +3182,14 @@ class UnstructuredMesh(MeshBase):
 
     def __repr__(self):
         string = super().__repr__()
-        string += '{: <16}=\t{}\n'.format('\tFilename', self.filename)
-        string += '{: <16}=\t{}\n'.format('\tMesh Library', self.library)
+        string += "{: <16}=\t{}\n".format("\tFilename", self.filename)
+        string += "{: <16}=\t{}\n".format("\tMesh Library", self.library)
         if self.length_multiplier != 1.0:
-            string += '{: <16}=\t{}\n'.format('\tLength multiplier',
-                                              self.length_multiplier)
+            string += "{: <16}=\t{}\n".format(
+                "\tLength multiplier", self.length_multiplier
+            )
         if self.options is not None:
-            string += '{: <16}=\t{}\n'.format('\tOptions', self.options)
+            string += "{: <16}=\t{}\n".format("\tOptions", self.options)
         return string
 
     @property
@@ -3119,7 +3282,9 @@ class UnstructuredMesh(MeshBase):
                 volume_normalization=volume_normalization,
             )
 
-        elif Path(filename).suffix == ".vtk" or Path(filename).suffix == ".vtu":
+        elif (
+            Path(filename).suffix == ".vtk" or Path(filename).suffix == ".vtu"
+        ):
 
             self._write_data_to_vtk_ascii_format(
                 filename=filename,
@@ -3139,14 +3304,18 @@ class UnstructuredMesh(MeshBase):
         datasets: dict | None = None,
         volume_normalization: bool = True,
     ):
+        from vtkmodules import (
+            vtkCommonCore,
+            vtkCommonDataModel,
+            vtkIOLegacy,
+            vtkIOXML,
+        )
         from vtkmodules.util import numpy_support
-        from vtkmodules import vtkCommonCore
-        from vtkmodules import vtkCommonDataModel
-        from vtkmodules import vtkIOLegacy
-        from vtkmodules import vtkIOXML
 
         if self.connectivity is None or self.vertices is None:
-            raise RuntimeError("This mesh has not been loaded from a statepoint file.")
+            raise RuntimeError(
+                "This mesh has not been loaded from a statepoint file."
+            )
 
         if filename is None:
             filename = f"mesh_{self.id}.vtk"
@@ -3235,9 +3404,10 @@ class UnstructuredMesh(MeshBase):
         volume_normalization: bool = True,
     ):
         """Write UnstructuredMesh as VTK-HDF5 UnstructuredGrid format.
-        
+
         Supports linear tetrahedra and linear hexahedra elements.
         """
+
         def append_dataset(dset, array):
             """Convenience function to append data to an HDF5 dataset"""
             origLen = dset.shape[0]
@@ -3245,7 +3415,9 @@ class UnstructuredMesh(MeshBase):
             dset[origLen:] = array
 
         if self.library != "moab":
-            raise NotImplementedError("VTKHDF output is only supported for MOAB meshes")
+            raise NotImplementedError(
+                "VTKHDF output is only supported for MOAB meshes"
+            )
 
         # the self.connectivity contains arrays of length 8 to support hex
         # elements as well, in the case of tetrahedra mesh elements, the
@@ -3260,13 +3432,19 @@ class UnstructuredMesh(MeshBase):
             else:
                 # No -1 values, append the whole cell
                 trimmed_connectivity.append(cell)
-        trimmed_connectivity = np.array(trimmed_connectivity, dtype="int32").flatten()
+        trimmed_connectivity = np.array(
+            trimmed_connectivity, dtype="int32"
+        ).flatten()
 
-        # MOAB meshes supports tet elements only so we know it has 4 points per cell
+        # MOAB meshes supports tet elements only so we know it has 4 points per
+        # cell
         points_per_cell = 4
 
-        # offsets are the indices of the first point of each cell in the array of points
-        offsets = np.arange(0, self.n_elements * points_per_cell + 1, points_per_cell)
+        # offsets are the indices of the first point of each cell in the array
+        # of points
+        offsets = np.arange(
+            0, self.n_elements * points_per_cell + 1, points_per_cell
+        )
 
         for name, data in datasets.items():
             if data.shape != self.dimension:
@@ -3288,17 +3466,27 @@ class UnstructuredMesh(MeshBase):
             )
 
             # create hdf5 file structure
-            root.create_dataset("NumberOfPoints", (0,), maxshape=(None,), dtype="i8")
+            root.create_dataset(
+                "NumberOfPoints", (0,), maxshape=(None,), dtype="i8"
+            )
             root.create_dataset("Types", (0,), maxshape=(None,), dtype="uint8")
-            root.create_dataset("Points", (0, 3), maxshape=(None, 3), dtype="f")
+            root.create_dataset(
+                "Points", (0, 3), maxshape=(None, 3), dtype="f"
+            )
             root.create_dataset(
                 "NumberOfConnectivityIds", (0,), maxshape=(None,), dtype="i8"
             )
-            root.create_dataset("NumberOfCells", (0,), maxshape=(None,), dtype="i8")
+            root.create_dataset(
+                "NumberOfCells", (0,), maxshape=(None,), dtype="i8"
+            )
             root.create_dataset("Offsets", (0,), maxshape=(None,), dtype="i8")
-            root.create_dataset("Connectivity", (0,), maxshape=(None,), dtype="i8")
+            root.create_dataset(
+                "Connectivity", (0,), maxshape=(None,), dtype="i8"
+            )
 
-            append_dataset(root["NumberOfPoints"], np.array([len(self.vertices)]))
+            append_dataset(
+                root["NumberOfPoints"], np.array([len(self.vertices)])
+            )
             append_dataset(root["Points"], self.vertices)
             append_dataset(
                 root["NumberOfConnectivityIds"],
@@ -3309,13 +3497,14 @@ class UnstructuredMesh(MeshBase):
             append_dataset(root["Offsets"], offsets)
 
             append_dataset(
-                root["Types"], np.full(self.n_elements, self._VTK_TETRA, dtype="uint8")
+                root["Types"],
+                np.full(self.n_elements, self._VTK_TETRA, dtype="uint8"),
             )
 
             cell_data_group = root.create_group("CellData")
 
             for name, data in datasets.items():
-                
+
                 cell_data_group.create_dataset(
                     name, (0,), maxshape=(None,), dtype="float64", chunks=True
                 )
@@ -3329,7 +3518,7 @@ class UnstructuredMesh(MeshBase):
         filename = group["filename"][()].decode()
         library = group["library"][()].decode()
         if "options" in group.attrs:
-            options = group.attrs['options'].decode()
+            options = group.attrs["options"].decode()
         else:
             options = None
 
@@ -3394,13 +3583,13 @@ class UnstructuredMesh(MeshBase):
         openmc.UnstructuredMesh
             UnstructuredMesh generated from an XML element
         """
-        mesh_id = int(get_text(elem, 'id'))
-        filename = get_text(elem, 'filename')
-        library = get_text(elem, 'library')
-        length_multiplier = float(get_text(elem, 'length_multiplier', 1.0))
+        mesh_id = int(get_text(elem, "id"))
+        filename = get_text(elem, "filename")
+        library = get_text(elem, "library")
+        length_multiplier = float(get_text(elem, "length_multiplier", 1.0))
         options = get_text(elem, "options")
 
-        return cls(filename, library, mesh_id, '', length_multiplier, options)
+        return cls(filename, library, mesh_id, "", length_multiplier, options)
 
 
 def _read_meshes(elem):
@@ -3418,7 +3607,7 @@ def _read_meshes(elem):
         instanaces as values
     """
     out = {}
-    for mesh_elem in elem.findall('mesh'):
+    for mesh_elem in elem.findall("mesh"):
         mesh = MeshBase.from_xml_element(mesh_elem)
         out[mesh.id] = mesh
 
@@ -3427,30 +3616,30 @@ def _read_meshes(elem):
 
 # hexahedron element connectivity
 # lower-k connectivity offsets
-_HEX_VERTEX_CONN = ((0, 0, 0),
-                    (1, 0, 0),
-                    (1, 1, 0),
-                    (0, 1, 0))
+_HEX_VERTEX_CONN = ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0))
 # upper-k connectivity offsets
-_HEX_VERTEX_CONN += ((0, 0, 1),
-                     (1, 0, 1),
-                     (1, 1, 1),
-                     (0, 1, 1))
+_HEX_VERTEX_CONN += ((0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1))
 
 _N_HEX_VERTICES = 8
 
 # lower-k connectivity offsets
-_HEX_MIDPOINT_CONN = ((0, (0, 0, 0)),
-                      (1, (1, 0, 0)),
-                      (0, (0, 1, 0)),
-                      (1, (0, 0, 0)))
+_HEX_MIDPOINT_CONN = (
+    (0, (0, 0, 0)),
+    (1, (1, 0, 0)),
+    (0, (0, 1, 0)),
+    (1, (0, 0, 0)),
+)
 # upper-k connectivity offsets
-_HEX_MIDPOINT_CONN += ((0, (0, 0, 1)),
-                       (1, (1, 0, 1)),
-                       (0, (0, 1, 1)),
-                       (1, (0, 0, 1)))
+_HEX_MIDPOINT_CONN += (
+    (0, (0, 0, 1)),
+    (1, (1, 0, 1)),
+    (0, (0, 1, 1)),
+    (1, (0, 0, 1)),
+)
 # mid-plane k connectivity
-_HEX_MIDPOINT_CONN += ((2, (0, 0, 0)),
-                       (2, (1, 0, 0)),
-                       (2, (1, 1, 0)),
-                       (2, (0, 1, 0)))
+_HEX_MIDPOINT_CONN += (
+    (2, (0, 0, 0)),
+    (2, (1, 0, 0)),
+    (2, (1, 1, 0)),
+    (2, (0, 1, 0)),
+)

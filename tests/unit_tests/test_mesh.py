@@ -1,18 +1,21 @@
 from math import pi
-from tempfile import TemporaryDirectory
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import h5py
 import numpy as np
-from scipy.stats import chi2
 import pytest
+from scipy.stats import chi2
+from uncertainties.unumpy import nominal_values, std_devs, uarray
+
 import openmc
 import openmc.lib
 from openmc.utility_funcs import change_directory
-from uncertainties.unumpy import uarray, nominal_values, std_devs
 
 
-@pytest.mark.parametrize("val_left,val_right", [(0, 0), (-1., -1.), (2.0, 2)])
+@pytest.mark.parametrize(
+    "val_left,val_right", [(0, 0), (-1.0, -1.0), (2.0, 2)]
+)
 def test_raises_error_when_flat(val_left, val_right):
     """Checks that an error is raised when a mesh is flat"""
     mesh = openmc.RegularMesh()
@@ -51,27 +54,27 @@ def test_regular_mesh_bounding_box():
     mesh.upper_right = [2, 3, 5]
     bb = mesh.bounding_box
     assert isinstance(bb, openmc.BoundingBox)
-    np.testing.assert_array_equal(bb.lower_left, (-2, -3 ,-5))
+    np.testing.assert_array_equal(bb.lower_left, (-2, -3, -5))
     np.testing.assert_array_equal(bb.upper_right, (2, 3, 5))
 
 
 def test_rectilinear_mesh_bounding_box():
     mesh = openmc.RectilinearMesh()
-    mesh.x_grid = [0., 1., 5., 10.]
-    mesh.y_grid = [-10., -5., 0.]
-    mesh.z_grid = [-100., 0., 100.]
+    mesh.x_grid = [0.0, 1.0, 5.0, 10.0]
+    mesh.y_grid = [-10.0, -5.0, 0.0]
+    mesh.z_grid = [-100.0, 0.0, 100.0]
     bb = mesh.bounding_box
     assert isinstance(bb, openmc.BoundingBox)
-    np.testing.assert_array_equal(bb.lower_left, (0., -10. ,-100.))
-    np.testing.assert_array_equal(bb.upper_right, (10., 0., 100.))
+    np.testing.assert_array_equal(bb.lower_left, (0.0, -10.0, -100.0))
+    np.testing.assert_array_equal(bb.upper_right, (10.0, 0.0, 100.0))
 
 
 def test_cylindrical_mesh_bounding_box():
     # test with mesh at origin (0, 0, 0)
     mesh = openmc.CylindricalMesh(
-        r_grid=[0.1, 0.2, 0.5, 1.],
-        z_grid=[0.1, 0.2, 0.4, 0.6, 1.],
-        origin=(0, 0, 0)
+        r_grid=[0.1, 0.2, 0.5, 1.0],
+        z_grid=[0.1, 0.2, 0.4, 0.6, 1.0],
+        origin=(0, 0, 0),
     )
     np.testing.assert_array_equal(mesh.upper_right, (1, 1, 1))
     np.testing.assert_array_equal(mesh.lower_left, (-1, -1, 0.1))
@@ -97,7 +100,7 @@ def test_cylindrical_mesh_bounding_box():
 
 def test_spherical_mesh_bounding_box():
     # test with mesh at origin (0, 0, 0)
-    mesh = openmc.SphericalMesh([0.1, 0.2, 0.5, 1.], origin=(0., 0., 0.))
+    mesh = openmc.SphericalMesh([0.1, 0.2, 0.5, 1.0], origin=(0.0, 0.0, 0.0))
     np.testing.assert_array_equal(mesh.upper_right, (1, 1, 1))
     np.testing.assert_array_equal(mesh.lower_left, (-1, -1, -1))
     bb = mesh.bounding_box
@@ -121,23 +124,20 @@ def test_SphericalMesh_initiation():
     assert (mesh.origin == np.array([0, 0, 0])).all()
     assert (mesh.r_grid == np.array([0, 10])).all()
     assert (mesh.theta_grid == np.array([0, pi])).all()
-    assert (mesh.phi_grid == np.array([0, 2*pi])).all()
+    assert (mesh.phi_grid == np.array([0, 2 * pi])).all()
 
     # test setting on creation
     mesh = openmc.SphericalMesh(
-        origin=(1, 2, 3),
-        r_grid=(0, 2),
-        theta_grid=(1, 3),
-        phi_grid=(2, 4)
+        origin=(1, 2, 3), r_grid=(0, 2), theta_grid=(1, 3), phi_grid=(2, 4)
     )
     assert (mesh.origin == np.array([1, 2, 3])).all()
-    assert (mesh.r_grid == np.array([0., 2.])).all()
+    assert (mesh.r_grid == np.array([0.0, 2.0])).all()
     assert (mesh.theta_grid == np.array([1, 3])).all()
     assert (mesh.phi_grid == np.array([2, 4])).all()
 
     # test attribute changing
     mesh.r_grid = (0, 11)
-    assert (mesh.r_grid == np.array([0., 11.])).all()
+    assert (mesh.r_grid == np.array([0.0, 11.0])).all()
 
     # test invalid r_grid values
     with pytest.raises(ValueError):
@@ -162,7 +162,7 @@ def test_SphericalMesh_initiation():
 
     # waffles and pancakes are unfortunately not valid radii
     with pytest.raises(TypeError):
-        openmc.SphericalMesh(('🧇', '🥞'))
+        openmc.SphericalMesh(("🧇", "🥞"))
 
 
 def test_CylindricalMesh_initiation():
@@ -170,30 +170,27 @@ def test_CylindricalMesh_initiation():
     mesh = openmc.CylindricalMesh(r_grid=(0, 10), z_grid=(0, 10))
     assert (mesh.origin == np.array([0, 0, 0])).all()
     assert (mesh.r_grid == np.array([0, 10])).all()
-    assert (mesh.phi_grid == np.array([0, 2*pi])).all()
+    assert (mesh.phi_grid == np.array([0, 2 * pi])).all()
     assert (mesh.z_grid == np.array([0, 10])).all()
 
     # test setting on creation
     mesh = openmc.CylindricalMesh(
-        origin=(1, 2, 3),
-        r_grid=(0, 2),
-        z_grid=(1, 3),
-        phi_grid=(2, 4)
+        origin=(1, 2, 3), r_grid=(0, 2), z_grid=(1, 3), phi_grid=(2, 4)
     )
     assert (mesh.origin == np.array([1, 2, 3])).all()
-    assert (mesh.r_grid == np.array([0., 2.])).all()
+    assert (mesh.r_grid == np.array([0.0, 2.0])).all()
     assert (mesh.z_grid == np.array([1, 3])).all()
     assert (mesh.phi_grid == np.array([2, 4])).all()
 
     # test attribute changing
-    mesh.r_grid = (0., 10.)
-    assert (mesh.r_grid == np.array([0, 10.])).all()
-    mesh.z_grid = (0., 4.)
-    assert (mesh.z_grid == np.array([0, 4.])).all()
+    mesh.r_grid = (0.0, 10.0)
+    assert (mesh.r_grid == np.array([0, 10.0])).all()
+    mesh.z_grid = (0.0, 4.0)
+    assert (mesh.z_grid == np.array([0, 4.0])).all()
 
     # waffles and pancakes are unfortunately not valid radii
     with pytest.raises(TypeError):
-        openmc.SphericalMesh(('🧇', '🥞'))
+        openmc.SphericalMesh(("🧇", "🥞"))
 
 
 def test_invalid_cylindrical_mesh_errors():
@@ -202,20 +199,22 @@ def test_invalid_cylindrical_mesh_errors():
         openmc.CylindricalMesh(r_grid=[5, 1], phi_grid=[0, pi], z_grid=[0, 10])
 
     with pytest.raises(ValueError):
-        openmc.CylindricalMesh(r_grid=[1, 2, 4, 3], phi_grid=[0, pi], z_grid=[0, 10])
+        openmc.CylindricalMesh(
+            r_grid=[1, 2, 4, 3], phi_grid=[0, pi], z_grid=[0, 10]
+        )
 
     with pytest.raises(ValueError):
         openmc.CylindricalMesh(r_grid=[1], phi_grid=[0, pi], z_grid=[0, 10])
 
     # Test invalid phi_grid values
     with pytest.raises(ValueError):
-        openmc.CylindricalMesh(r_grid=[0, 1, 2], phi_grid=[-1, 3], z_grid=[0, 10])
+        openmc.CylindricalMesh(
+            r_grid=[0, 1, 2], phi_grid=[-1, 3], z_grid=[0, 10]
+        )
 
     with pytest.raises(ValueError):
         openmc.CylindricalMesh(
-            r_grid=[0, 1, 2],
-            phi_grid=[0, 2*pi + 0.1],
-            z_grid=[0, 10]
+            r_grid=[0, 1, 2], phi_grid=[0, 2 * pi + 0.1], z_grid=[0, 10]
         )
 
     with pytest.raises(ValueError):
@@ -226,55 +225,75 @@ def test_invalid_cylindrical_mesh_errors():
         openmc.CylindricalMesh(r_grid=[0, 1, 2], phi_grid=[0, pi], z_grid=[5])
 
     with pytest.raises(ValueError):
-        openmc.CylindricalMesh(r_grid=[0, 1, 2], phi_grid=[0, pi], z_grid=[5, 1])
+        openmc.CylindricalMesh(
+            r_grid=[0, 1, 2], phi_grid=[0, pi], z_grid=[5, 1]
+        )
 
     with pytest.raises(ValueError):
-        openmc.CylindricalMesh(r_grid=[1, 2, 4, 3], phi_grid=[0, pi], z_grid=[0, 10, 5])
+        openmc.CylindricalMesh(
+            r_grid=[1, 2, 4, 3], phi_grid=[0, pi], z_grid=[0, 10, 5]
+        )
 
 
 def test_centroids():
     # regular mesh
     mesh = openmc.RegularMesh()
-    mesh.lower_left = (1., 2., 3.)
-    mesh.upper_right = (11., 12., 13.)
+    mesh.lower_left = (1.0, 2.0, 3.0)
+    mesh.upper_right = (11.0, 12.0, 13.0)
     mesh.dimension = (1, 1, 1)
-    np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [6., 7., 8.])
+    np.testing.assert_array_almost_equal(
+        mesh.centroids[0, 0, 0], [6.0, 7.0, 8.0]
+    )
 
     # rectilinear mesh
     mesh = openmc.RectilinearMesh()
-    mesh.x_grid = [1., 11.]
-    mesh.y_grid = [2., 12.]
-    mesh.z_grid = [3., 13.]
-    np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [6., 7., 8.])
+    mesh.x_grid = [1.0, 11.0]
+    mesh.y_grid = [2.0, 12.0]
+    mesh.z_grid = [3.0, 13.0]
+    np.testing.assert_array_almost_equal(
+        mesh.centroids[0, 0, 0], [6.0, 7.0, 8.0]
+    )
 
     # cylindrical mesh
-    mesh = openmc.CylindricalMesh(r_grid=(0, 10), z_grid=(0, 10), phi_grid=(0, np.pi))
-    np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [0.0, 5.0, 5.0])
+    mesh = openmc.CylindricalMesh(
+        r_grid=(0, 10), z_grid=(0, 10), phi_grid=(0, np.pi)
+    )
+    np.testing.assert_array_almost_equal(
+        mesh.centroids[0, 0, 0], [0.0, 5.0, 5.0]
+    )
     # ensure that setting an origin is handled correctly
     mesh.origin = (5.0, 0, -10)
-    np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [5.0, 5.0, -5.0])
+    np.testing.assert_array_almost_equal(
+        mesh.centroids[0, 0, 0], [5.0, 5.0, -5.0]
+    )
 
     # spherical mesh, single element xyz-positive octant
-    mesh = openmc.SphericalMesh(r_grid=[0, 10], theta_grid=[0, 0.5*np.pi], phi_grid=[0, np.pi])
-    x = 5.*np.cos(0.5*np.pi)*np.sin(0.25*np.pi)
-    y = 5.*np.sin(0.5*np.pi)*np.sin(0.25*np.pi)
-    z = 5.*np.sin(0.25*np.pi)
+    mesh = openmc.SphericalMesh(
+        r_grid=[0, 10], theta_grid=[0, 0.5 * np.pi], phi_grid=[0, np.pi]
+    )
+    x = 5.0 * np.cos(0.5 * np.pi) * np.sin(0.25 * np.pi)
+    y = 5.0 * np.sin(0.5 * np.pi) * np.sin(0.25 * np.pi)
+    z = 5.0 * np.sin(0.25 * np.pi)
     np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [x, y, z])
 
     mesh.origin = (-5.0, -5.0, 5.0)
-    np.testing.assert_array_almost_equal(mesh.centroids[0, 0, 0], [x-5.0, y-5.0, z+5.0])
+    np.testing.assert_array_almost_equal(
+        mesh.centroids[0, 0, 0], [x - 5.0, y - 5.0, z + 5.0]
+    )
 
 
-@pytest.mark.parametrize('mesh_type', ('regular', 'rectilinear', 'cylindrical', 'spherical'))
+@pytest.mark.parametrize(
+    "mesh_type", ("regular", "rectilinear", "cylindrical", "spherical")
+)
 def test_mesh_vertices(mesh_type):
 
     ijk = (2, 3, 2)
 
     # create a new mesh object
-    if mesh_type == 'regular':
+    if mesh_type == "regular":
         mesh = openmc.RegularMesh()
-        ll = np.asarray([0.]*3)
-        width = np.asarray([0.5]*3)
+        ll = np.asarray([0.0] * 3)
+        width = np.asarray([0.5] * 3)
         mesh.lower_left = ll
         mesh.width = width
         mesh.dimension = (5, 7, 9)
@@ -285,32 +304,40 @@ def test_mesh_vertices(mesh_type):
         np.testing.assert_equal(mesh.vertices[ijk], exp_i_j_k)
 
         # shift the mesh using the llc
-        shift  = np.asarray((3.0, 6.0, 10.0))
+        shift = np.asarray((3.0, 6.0, 10.0))
         mesh.lower_left += shift
-        np.testing.assert_equal(mesh.vertices[ijk], exp_i_j_k+shift)
-    elif mesh_type == 'rectilinear':
+        np.testing.assert_equal(mesh.vertices[ijk], exp_i_j_k + shift)
+    elif mesh_type == "rectilinear":
         mesh = openmc.RectilinearMesh()
         w = np.asarray([0.5] * 3)
-        ll = np.asarray([0.]*3)
+        ll = np.asarray([0.0] * 3)
         dims = (5, 7, 9)
-        mesh.x_grid = np.linspace(ll[0], w[0]*dims[0], dims[0])
-        mesh.y_grid = np.linspace(ll[1], w[1]*dims[1], dims[1])
-        mesh.z_grid = np.linspace(ll[2], w[2]*dims[2], dims[2])
+        mesh.x_grid = np.linspace(ll[0], w[0] * dims[0], dims[0])
+        mesh.y_grid = np.linspace(ll[1], w[1] * dims[1], dims[1])
+        mesh.z_grid = np.linspace(ll[2], w[2] * dims[2], dims[2])
         exp_vert = np.asarray((mesh.x_grid[2], mesh.y_grid[3], mesh.z_grid[2]))
         np.testing.assert_equal(mesh.vertices[ijk], exp_vert)
-    elif mesh_type == 'cylindrical':
+    elif mesh_type == "cylindrical":
         r_grid = np.linspace(0, 5, 10)
         z_grid = np.linspace(-10, 10, 20)
-        phi_grid = np.linspace(0, 2*np.pi, 8)
-        mesh = openmc.CylindricalMesh(r_grid=r_grid, z_grid=z_grid, phi_grid=phi_grid)
-        exp_vert = np.asarray((mesh.r_grid[2], mesh.phi_grid[3], mesh.z_grid[2]))
+        phi_grid = np.linspace(0, 2 * np.pi, 8)
+        mesh = openmc.CylindricalMesh(
+            r_grid=r_grid, z_grid=z_grid, phi_grid=phi_grid
+        )
+        exp_vert = np.asarray(
+            (mesh.r_grid[2], mesh.phi_grid[3], mesh.z_grid[2])
+        )
         np.testing.assert_equal(mesh.vertices_cylindrical[ijk], exp_vert)
-    elif mesh_type == 'spherical':
+    elif mesh_type == "spherical":
         r_grid = np.linspace(0, 13, 14)
         theta_grid = np.linspace(0, np.pi, 11)
-        phi_grid = np.linspace(0, 2*np.pi, 7)
-        mesh = openmc.SphericalMesh(r_grid=r_grid, theta_grid=theta_grid, phi_grid=phi_grid)
-        exp_vert = np.asarray((mesh.r_grid[2], mesh.theta_grid[3], mesh.phi_grid[2]))
+        phi_grid = np.linspace(0, 2 * np.pi, 7)
+        mesh = openmc.SphericalMesh(
+            r_grid=r_grid, theta_grid=theta_grid, phi_grid=phi_grid
+        )
+        exp_vert = np.asarray(
+            (mesh.r_grid[2], mesh.theta_grid[3], mesh.phi_grid[2])
+        )
         np.testing.assert_equal(mesh.vertices_spherical[ijk], exp_vert)
 
 
@@ -325,9 +352,13 @@ def test_CylindricalMesh_get_indices_at_coords():
     assert mesh.get_indices_at_coords([-2, -2, 9]) == (0, 0, 1)
 
     with pytest.raises(ValueError):
-        assert mesh.get_indices_at_coords([8, 8, 1])  # resulting r value to large
+        assert mesh.get_indices_at_coords(
+            [8, 8, 1]
+        )  # resulting r value to large
     with pytest.raises(ValueError):
-        assert mesh.get_indices_at_coords([-8, -8, 1])  # resulting r value to large
+        assert mesh.get_indices_at_coords(
+            [-8, -8, 1]
+        )  # resulting r value to large
     with pytest.raises(ValueError):
         assert mesh.get_indices_at_coords([1, 0, -1])  # z value below range
     with pytest.raises(ValueError):
@@ -341,11 +372,31 @@ def test_CylindricalMesh_get_indices_at_coords():
         phi_grid=(0, 0.5 * pi, pi, 1.5 * pi, 1.9 * pi),
         z_grid=(-5, 0, 5, 10),
     )
-    assert mesh.get_indices_at_coords([1, 1, 1]) == (0, 0, 1)  # first angle quadrant
-    assert mesh.get_indices_at_coords([2, 2, 6]) == (0, 0, 2)  # first angle quadrant
-    assert mesh.get_indices_at_coords([-2, 0.1, -1]) == (0, 1, 0)  # second angle quadrant
-    assert mesh.get_indices_at_coords([-2, -0.1, -1]) == (0, 2, 0)  # third angle quadrant
-    assert mesh.get_indices_at_coords([2, -0.9, -1]) == (0, 3, 0)  # forth angle quadrant
+    assert mesh.get_indices_at_coords([1, 1, 1]) == (
+        0,
+        0,
+        1,
+    )  # first angle quadrant
+    assert mesh.get_indices_at_coords([2, 2, 6]) == (
+        0,
+        0,
+        2,
+    )  # first angle quadrant
+    assert mesh.get_indices_at_coords([-2, 0.1, -1]) == (
+        0,
+        1,
+        0,
+    )  # second angle quadrant
+    assert mesh.get_indices_at_coords([-2, -0.1, -1]) == (
+        0,
+        2,
+        0,
+    )  # third angle quadrant
+    assert mesh.get_indices_at_coords([2, -0.9, -1]) == (
+        0,
+        3,
+        0,
+    )  # forth angle quadrant
 
     with pytest.raises(ValueError):
         assert mesh.get_indices_at_coords([2, -0.1, 1])  # outside of phi range
@@ -357,17 +408,37 @@ def test_CylindricalMesh_get_indices_at_coords():
         z_grid=(-5, 0, 5, 10),
         origin=(100, 200, 300),
     )
-    assert mesh.get_indices_at_coords([101, 201, 301]) == (0, 0, 1)  # first angle quadrant
-    assert mesh.get_indices_at_coords([102, 202, 306]) == (0, 0, 2)  # first angle quadrant
-    assert mesh.get_indices_at_coords([98, 200.1, 299]) == (0, 1, 0)  # second angle quadrant
-    assert mesh.get_indices_at_coords([98, 199.9, 299]) == (0, 2, 0)  # third angle quadrant
-    assert mesh.get_indices_at_coords([102, 199.1, 299]) == (0, 3, 0)  # forth angle quadrant
+    assert mesh.get_indices_at_coords([101, 201, 301]) == (
+        0,
+        0,
+        1,
+    )  # first angle quadrant
+    assert mesh.get_indices_at_coords([102, 202, 306]) == (
+        0,
+        0,
+        2,
+    )  # first angle quadrant
+    assert mesh.get_indices_at_coords([98, 200.1, 299]) == (
+        0,
+        1,
+        0,
+    )  # second angle quadrant
+    assert mesh.get_indices_at_coords([98, 199.9, 299]) == (
+        0,
+        2,
+        0,
+    )  # third angle quadrant
+    assert mesh.get_indices_at_coords([102, 199.1, 299]) == (
+        0,
+        3,
+        0,
+    )  # forth angle quadrant
 
 
 def test_mesh_name_roundtrip(run_in_tmpdir):
 
     mesh = openmc.RegularMesh()
-    mesh.name = 'regular-mesh'
+    mesh.name = "regular-mesh"
     mesh.lower_left = (-1, -1, -1)
     mesh.width = (1, 1, 1)
     mesh.dimension = (1, 1, 1)
@@ -375,25 +446,27 @@ def test_mesh_name_roundtrip(run_in_tmpdir):
     mesh_filter = openmc.MeshFilter(mesh)
     tally = openmc.Tally()
     tally.filters = [mesh_filter]
-    tally.scores = ['flux']
+    tally.scores = ["flux"]
 
     openmc.Tallies([tally]).export_to_xml()
 
     xml_tallies = openmc.Tallies.from_xml()
 
     mesh = xml_tallies[0].find_filter(openmc.MeshFilter).mesh
-    assert mesh.name == 'regular-mesh'
+    assert mesh.name == "regular-mesh"
 
 
 def test_umesh_roundtrip(run_in_tmpdir, request):
-    umesh = openmc.UnstructuredMesh(request.path.parent / 'test_mesh_tets.e', 'moab')
+    umesh = openmc.UnstructuredMesh(
+        request.path.parent / "test_mesh_tets.e", "moab"
+    )
     umesh.output = True
 
     # create a tally using this mesh
     mf = openmc.MeshFilter(umesh)
     tally = openmc.Tally()
     tally.filters = [mf]
-    tally.scores = ['flux']
+    tally.scores = ["flux"]
 
     tallies = openmc.Tallies([tally])
     tallies.export_to_xml()
@@ -405,23 +478,23 @@ def test_umesh_roundtrip(run_in_tmpdir, request):
     assert umesh.id == xml_mesh.id
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def simple_umesh(request):
     """Fixture returning UnstructuredMesh with all attributes"""
     surf1 = openmc.Sphere(r=20.0, boundary_type="vacuum")
     material1 = openmc.Material()
     material1.add_element("H", 1.0)
-    material1.set_density('g/cm3', 1.0)
+    material1.set_density("g/cm3", 1.0)
 
     materials = openmc.Materials([material1])
     cell1 = openmc.Cell(region=-surf1, fill=material1)
     geometry = openmc.Geometry([cell1])
 
     umesh = openmc.UnstructuredMesh(
-       filename=request.path.parent.parent
+        filename=request.path.parent.parent
         / "regression_tests/external_moab/test_mesh_tets.h5m",
-       library="moab",
-       mesh_id=1
+        library="moab",
+        mesh_id=1,
     )
     # setting ID to make it easier to get the mesh from the statepoint later
     mesh_filter = openmc.MeshFilter(umesh)
@@ -442,7 +515,10 @@ def simple_umesh(request):
     )
 
     model = openmc.Model(
-        materials=materials, geometry=geometry, settings=settings, tallies=tallies
+        materials=materials,
+        geometry=geometry,
+        settings=settings,
+        tallies=tallies,
     )
 
     with change_directory(tmpdir=True):
@@ -451,8 +527,10 @@ def simple_umesh(request):
             return sp.meshes[1]
 
 
-@pytest.mark.skipif(not openmc.lib._dagmc_enabled(), reason="DAGMC not enabled.")
-@pytest.mark.parametrize('export_type', ('.vtk', '.vtu'))
+@pytest.mark.skipif(
+    not openmc.lib._dagmc_enabled(), reason="DAGMC not enabled."
+)
+@pytest.mark.parametrize("export_type", (".vtk", ".vtu"))
 def test_umesh(run_in_tmpdir, simple_umesh, export_type):
     """Performs a minimal UnstructuredMesh simulation, reads in the resulting
     statepoint file and writes the mesh data to vtk and vtkhdf files. It is
@@ -467,7 +545,9 @@ def test_umesh(run_in_tmpdir, simple_umesh, export_type):
     rng = np.random.default_rng()
     ref_data = rng.random(simple_umesh.dimension)
     filename = f"test_mesh{export_type}"
-    simple_umesh.write_data_to_vtk(datasets={"mean": ref_data}, filename=filename)
+    simple_umesh.write_data_to_vtk(
+        datasets={"mean": ref_data}, filename=filename
+    )
 
     assert Path(filename).exists()
 
@@ -485,10 +565,14 @@ def test_umesh(run_in_tmpdir, simple_umesh, export_type):
 
     # attempt to apply a dataset with an improper size to a VTK write
     with pytest.raises(ValueError, match='Cannot apply dataset "mean"'):
-        simple_umesh.write_data_to_vtk(datasets={'mean': ref_data[:-2]}, filename=filename)
+        simple_umesh.write_data_to_vtk(
+            datasets={"mean": ref_data[:-2]}, filename=filename
+        )
 
 
-@pytest.mark.skipif(not openmc.lib._dagmc_enabled(), reason="DAGMC not enabled.")
+@pytest.mark.skipif(
+    not openmc.lib._dagmc_enabled(), reason="DAGMC not enabled."
+)
 def test_write_vtkhdf(request, run_in_tmpdir):
     """Performs a minimal UnstructuredMesh simulation, reads in the resulting
     statepoint file and writes the mesh data to vtk and vtkhdf files. It is
@@ -502,9 +586,7 @@ def test_write_vtkhdf(request, run_in_tmpdir):
     model.geometry = openmc.Geometry([cell1])
 
     umesh = openmc.UnstructuredMesh(
-        request.path.parent / "test_mesh_dagmc_tets.vtk",
-        "moab",
-        mesh_id = 1
+        request.path.parent / "test_mesh_dagmc_tets.vtk", "moab", mesh_id=1
     )
     mesh_filter = openmc.MeshFilter(umesh)
 
@@ -526,24 +608,30 @@ def test_write_vtkhdf(request, run_in_tmpdir):
 
     umesh_from_sp = statepoint.meshes[umesh.id]
 
-    datasets={
+    datasets = {
         "mean": my_tally.mean.flatten(),
-        "std_dev": my_tally.std_dev.flatten()
+        "std_dev": my_tally.std_dev.flatten(),
     }
 
-    umesh_from_sp.write_data_to_vtk(datasets=datasets, filename="test_mesh.vtkhdf")
-    umesh_from_sp.write_data_to_vtk(datasets=datasets, filename="test_mesh.vtk")
+    umesh_from_sp.write_data_to_vtk(
+        datasets=datasets, filename="test_mesh.vtkhdf"
+    )
+    umesh_from_sp.write_data_to_vtk(
+        datasets=datasets, filename="test_mesh.vtk"
+    )
 
     with pytest.raises(ValueError, match="Unsupported file extension"):
-        # Supported file extensions are vtk or vtkhdf, not hdf5, so this should raise an error
+        # Supported file extensions are vtk or vtkhdf, not hdf5, so this should
+        # raise an error
         umesh_from_sp.write_data_to_vtk(
             datasets=datasets,
             filename="test_mesh.hdf5",
         )
     with pytest.raises(ValueError, match="Cannot apply dataset"):
-        # The shape of the data should match the shape of the mesh, so this should raise an error
+        # The shape of the data should match the shape of the mesh, so this
+        # should raise an error
         umesh_from_sp.write_data_to_vtk(
-            datasets={'incorrectly_shaped_data': np.array(([1,2,3]))},
+            datasets={"incorrectly_shaped_data": np.array(([1, 2, 3]))},
             filename="test_mesh_incorrect_shape.vtkhdf",
         )
 
@@ -554,20 +642,21 @@ def test_write_vtkhdf(request, run_in_tmpdir):
     with h5py.File("test_mesh.vtkhdf", "r"):
         ...
 
+
 def test_mesh_get_homogenized_materials():
     """Test the get_homogenized_materials method"""
     # Simple model with 1 cm of Fe56 next to 1 cm of H1
     fe = openmc.Material()
-    fe.add_nuclide('Fe56', 1.0)
-    fe.set_density('g/cm3', 5.0)
+    fe.add_nuclide("Fe56", 1.0)
+    fe.set_density("g/cm3", 5.0)
     h = openmc.Material()
-    h.add_nuclide('H1', 1.0)
-    h.set_density('g/cm3', 1.0)
+    h.add_nuclide("H1", 1.0)
+    h.set_density("g/cm3", 1.0)
 
-    x0 = openmc.XPlane(-1.0, boundary_type='vacuum')
+    x0 = openmc.XPlane(-1.0, boundary_type="vacuum")
     x1 = openmc.XPlane(0.0)
     x2 = openmc.XPlane(1.0)
-    x3 = openmc.XPlane(2.0, boundary_type='vacuum')
+    x3 = openmc.XPlane(2.0, boundary_type="vacuum")
     cell1 = openmc.Cell(fill=fe, region=+x0 & -x1)
     cell2 = openmc.Cell(fill=h, region=+x1 & -x2)
     cell_empty = openmc.Cell(region=+x2 & -x3)
@@ -576,35 +665,36 @@ def test_mesh_get_homogenized_materials():
     model.settings.batches = 10
 
     mesh = openmc.RegularMesh()
-    mesh.lower_left = (-1., -1., -1.)
-    mesh.upper_right = (1., 1., 1.)
+    mesh.lower_left = (-1.0, -1.0, -1.0)
+    mesh.upper_right = (1.0, 1.0, 1.0)
     mesh.dimension = (3, 1, 1)
     m1, m2, m3 = mesh.get_homogenized_materials(model, n_samples=10_000)
 
     # Left mesh element should be only Fe56
-    assert m1.get_mass_density('Fe56') == pytest.approx(5.0)
+    assert m1.get_mass_density("Fe56") == pytest.approx(5.0)
 
     # Middle mesh element should be 50% Fe56 and 50% H1
-    assert m2.get_mass_density('Fe56') == pytest.approx(2.5, rel=1e-2)
-    assert m2.get_mass_density('H1') == pytest.approx(0.5, rel=1e-2)
+    assert m2.get_mass_density("Fe56") == pytest.approx(2.5, rel=1e-2)
+    assert m2.get_mass_density("H1") == pytest.approx(0.5, rel=1e-2)
 
     # Right mesh element should be only H1
-    assert m3.get_mass_density('H1') == pytest.approx(1.0)
+    assert m3.get_mass_density("H1") == pytest.approx(1.0)
 
     mesh_void = openmc.RegularMesh()
-    mesh_void.lower_left = (0.5, 0.5, -1.)
-    mesh_void.upper_right = (1.5, 1.5, 1.)
+    mesh_void.lower_left = (0.5, 0.5, -1.0)
+    mesh_void.upper_right = (1.5, 1.5, 1.0)
     mesh_void.dimension = (1, 1, 1)
-    m4, = mesh_void.get_homogenized_materials(model, n_samples=(100, 100, 0))
+    (m4,) = mesh_void.get_homogenized_materials(model, n_samples=(100, 100, 0))
 
     # Mesh element that overlaps void should have half density
-    assert m4.get_mass_density('H1') == pytest.approx(0.5, rel=1e-2)
+    assert m4.get_mass_density("H1") == pytest.approx(0.5, rel=1e-2)
 
     # If not including void, density of homogenized material should be same as
     # original material
-    m5, = mesh_void.get_homogenized_materials(
-        model, n_samples=1000, include_void=False)
-    assert m5.get_mass_density('H1') == pytest.approx(1.0)
+    (m5,) = mesh_void.get_homogenized_materials(
+        model, n_samples=1000, include_void=False
+    )
+    assert m5.get_mass_density("H1") == pytest.approx(1.0)
 
 
 @pytest.fixture
@@ -613,11 +703,11 @@ def sphere_model():
     mats = []
     for i in range(3):
         mat = openmc.Material()
-        mat.add_nuclide('H1', 1.0)
-        mat.set_density('g/cm3', float(i + 1))
+        mat.add_nuclide("H1", 1.0)
+        mat.set_density("g/cm3", float(i + 1))
         mats.append(mat)
 
-    sph = openmc.Sphere(r=25.0, boundary_type='vacuum')
+    sph = openmc.Sphere(r=25.0, boundary_type="vacuum")
     x0 = openmc.XPlane(0.0)
     z0 = openmc.ZPlane(0.0)
     cell1 = openmc.Cell(fill=mats[0], region=-sph & +x0 & +z0)
@@ -629,58 +719,65 @@ def sphere_model():
     return model
 
 
-@pytest.mark.parametrize("n_rays", [1000, (10, 10, 0), (10, 0, 10), (0, 10, 10)])
+@pytest.mark.parametrize(
+    "n_rays", [1000, (10, 10, 0), (10, 0, 10), (0, 10, 10)]
+)
 def test_material_volumes_regular_mesh(sphere_model, n_rays):
     """Test the material_volumes method on a regular mesh"""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = (-1., -1., -1.)
-    mesh.upper_right = (1., 1., 1.)
+    mesh.lower_left = (-1.0, -1.0, -1.0)
+    mesh.upper_right = (1.0, 1.0, 1.0)
     mesh.dimension = (2, 2, 2)
     volumes = mesh.material_volumes(sphere_model, n_rays)
     mats = sphere_model.materials
-    np.testing.assert_almost_equal(volumes[mats[0].id], [0., 0., 0., 0., 0., 1., 0., 1.])
-    np.testing.assert_almost_equal(volumes[mats[1].id], [0., 0., 0., 0., 1., 0., 1., 0.])
-    np.testing.assert_almost_equal(volumes[mats[2].id], [1., 1., 1., 1., 0., 0., 0., 0.])
-    assert volumes.by_element(4) == [(mats[1].id, 1.)]
-    assert volumes.by_element(0) == [(mats[2].id, 1.)]
+    np.testing.assert_almost_equal(
+        volumes[mats[0].id], [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0]
+    )
+    np.testing.assert_almost_equal(
+        volumes[mats[1].id], [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0]
+    )
+    np.testing.assert_almost_equal(
+        volumes[mats[2].id], [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+    )
+    assert volumes.by_element(4) == [(mats[1].id, 1.0)]
+    assert volumes.by_element(0) == [(mats[2].id, 1.0)]
 
 
 def test_material_volumes_cylindrical_mesh(sphere_model):
     """Test the material_volumes method on a cylindrical mesh"""
     cyl_mesh = openmc.CylindricalMesh(
-        [0., 1.], [-1., 0., 1.,], [0.0, pi/4, 3*pi/4, 5*pi/4, 7*pi/4, 2*pi])
+        [0.0, 1.0],
+        [
+            -1.0,
+            0.0,
+            1.0,
+        ],
+        [0.0, pi / 4, 3 * pi / 4, 5 * pi / 4, 7 * pi / 4, 2 * pi],
+    )
     volumes = cyl_mesh.material_volumes(sphere_model, (0, 100, 100))
     mats = sphere_model.materials
-    np.testing.assert_almost_equal(volumes[mats[0].id], [
-        0., 0., 0., 0., 0.,
-        pi/8, pi/8, 0., pi/8, pi/8
-    ])
-    np.testing.assert_almost_equal(volumes[mats[1].id], [
-        0., 0., 0., 0., 0.,
-        0., pi/8, pi/4, pi/8, 0.
-    ])
-    np.testing.assert_almost_equal(volumes[mats[2].id], [
-        pi/8, pi/4, pi/4, pi/4, pi/8,
-        0., 0., 0., 0., 0.
-    ])
+    np.testing.assert_almost_equal(
+        volumes[mats[0].id],
+        [0.0, 0.0, 0.0, 0.0, 0.0, pi / 8, pi / 8, 0.0, pi / 8, pi / 8],
+    )
+    np.testing.assert_almost_equal(
+        volumes[mats[1].id],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, pi / 8, pi / 4, pi / 8, 0.0],
+    )
+    np.testing.assert_almost_equal(
+        volumes[mats[2].id],
+        [pi / 8, pi / 4, pi / 4, pi / 4, pi / 8, 0.0, 0.0, 0.0, 0.0, 0.0],
+    )
 
 
 def test_mesh_material_volumes_serialize():
-    materials = np.array([
-        [1, -1, -2],
-        [-1, -2, -2],
-        [2, 1, -2],
-        [2, -2, -2]
-    ])
-    volumes = np.array([
-        [0.5, 0.5, 0.0],
-        [1.0, 0.0, 0.0],
-        [0.5, 0.5, 0.0],
-        [1.0, 0.0, 0.0]
-    ])
+    materials = np.array([[1, -1, -2], [-1, -2, -2], [2, 1, -2], [2, -2, -2]])
+    volumes = np.array(
+        [[0.5, 0.5, 0.0], [1.0, 0.0, 0.0], [0.5, 0.5, 0.0], [1.0, 0.0, 0.0]]
+    )
     volumes = openmc.MeshMaterialVolumes(materials, volumes)
     with TemporaryDirectory() as tmpdir:
-        path = f'{tmpdir}/volumes.npz'
+        path = f"{tmpdir}/volumes.npz"
         volumes.save(path)
         new_volumes = openmc.MeshMaterialVolumes.from_npz(path)
 
@@ -694,23 +791,32 @@ def test_mesh_material_volumes_boundary_conditions(sphere_model):
     """Test the material volumes method using a regular mesh
     that overlaps with a vacuum boundary condition."""
 
-    mesh = openmc.SphericalMesh.from_domain(sphere_model.geometry, dimension=(1, 1, 1))
-    # extend mesh beyond the outer sphere surface to test rays crossing the boundary condition
+    mesh = openmc.SphericalMesh.from_domain(
+        sphere_model.geometry, dimension=(1, 1, 1)
+    )
+    # extend mesh beyond the outer sphere surface to test rays crossing the
+    # boundary condition
     mesh.r_grid[-1] += 5.0
 
     # add a new cell to the modelthat occupies the outside of the sphere
-    sphere_surfaces = list(filter(lambda s: isinstance(s, openmc.Sphere),
-                            sphere_model.geometry.get_all_surfaces().values()))
+    sphere_surfaces = list(
+        filter(
+            lambda s: isinstance(s, openmc.Sphere),
+            sphere_model.geometry.get_all_surfaces().values(),
+        )
+    )
     outer_cell = openmc.Cell(region=+sphere_surfaces[0])
     sphere_model.geometry.root_universe.add_cell(outer_cell)
 
     volumes = mesh.material_volumes(sphere_model, (0, 100, 100))
-    sphere_volume = 4/3*np.pi*25**3
+    sphere_volume = 4 / 3 * np.pi * 25**3
     mats = sphere_model.materials
-    expected_volumes = [(mats[0].id, 0.25*sphere_volume),
-                        (mats[1].id, 0.25*sphere_volume),
-                        (mats[2].id, 0.5*sphere_volume),
-                        (None, 4/3*np.pi*mesh.r_grid[-1]**3 - sphere_volume)]
+    expected_volumes = [
+        (mats[0].id, 0.25 * sphere_volume),
+        (mats[1].id, 0.25 * sphere_volume),
+        (mats[2].id, 0.5 * sphere_volume),
+        (None, 4 / 3 * np.pi * mesh.r_grid[-1] ** 3 - sphere_volume),
+    ]
 
     for evaluated, expected in zip(volumes.by_element(0), expected_volumes):
         assert evaluated[0] == expected[0]
@@ -719,7 +825,7 @@ def test_mesh_material_volumes_boundary_conditions(sphere_model):
 
 def test_raytrace_mesh_infinite_loop(run_in_tmpdir):
     # Create a model with one large spherical cell
-    sphere = openmc.Sphere(r=100, boundary_type='vacuum')
+    sphere = openmc.Sphere(r=100, boundary_type="vacuum")
     cell = openmc.Cell(region=-sphere)
     model = openmc.Model()
     model.geometry = openmc.Geometry([cell])
@@ -732,19 +838,19 @@ def test_raytrace_mesh_infinite_loop(run_in_tmpdir):
     reg_filter = openmc.MeshSurfaceFilter(mesh_surface)
     mesh_surface_tally = openmc.Tally()
     mesh_surface_tally.filters = [reg_filter]
-    mesh_surface_tally.scores = ['current']
+    mesh_surface_tally.scores = ["current"]
     model.tallies = [mesh_surface_tally]
 
     # Define a source such that the z position is on a mesh boundary with a very
     # small directional cosine in the z direction
     polar = openmc.stats.delta_function(1.75e-7)
-    azimuthal = openmc.stats.Uniform(0.0, 2.0*pi)
+    azimuthal = openmc.stats.Uniform(0.0, 2.0 * pi)
     model.settings.source = openmc.IndependentSource(
         angle=openmc.stats.PolarAzimuthal(polar, azimuthal)
     )
-    model.settings.run_mode = 'fixed source'
+    model.settings.run_mode = "fixed source"
     model.settings.particles = 10
-    model.settings.batches =  1
+    model.settings.batches = 1
 
     # Run the model; this should not cause an infinite loop
     model.run()
@@ -755,8 +861,8 @@ def test_filter_time_mesh(run_in_tmpdir):
 
     # Define material
     mat = openmc.Material()
-    mat.add_nuclide('Fe56', 1.0)
-    mat.set_density('g/cm3', 7.8)
+    mat.add_nuclide("Fe56", 1.0)
+    mat.set_density("g/cm3", 7.8)
 
     # Define geometry
     surf_Z1 = openmc.XPlane(x0=-1e10, boundary_type="reflective")
@@ -833,6 +939,7 @@ def test_filter_time_mesh(run_in_tmpdir):
 # VTKHDF Format Tests for StructuredMeshes
 # =============================================================================
 
+
 def test_regular_mesh_get_indices_at_coords():
     """Test get_indices_at_coords method for RegularMesh"""
     # Create a 10x10x10 mesh from (0,0,0) to (1,1,1)
@@ -905,11 +1012,12 @@ def test_regular_mesh_get_indices_at_coords():
     assert len(result_1d) == 1
     assert result_1d == (5,)
 
+
 def test_write_vtkhdf_regular_mesh(run_in_tmpdir):
     """Test writing a regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [-5., -5., -5.]
-    mesh.upper_right = [5., 5., 5.]
+    mesh.lower_left = [-5.0, -5.0, -5.0]
+    mesh.upper_right = [5.0, 5.0, 5.0]
     mesh.dimension = [2, 3, 4]
 
     # Sample some random data and write to VTKHDF
@@ -943,9 +1051,9 @@ def test_write_vtkhdf_regular_mesh(run_in_tmpdir):
 def test_write_vtkhdf_rectilinear_mesh(run_in_tmpdir):
     """Test writing a rectilinear mesh to VTKHDF format."""
     mesh = openmc.RectilinearMesh()
-    mesh.x_grid = np.array([0., 1., 3., 6.])
-    mesh.y_grid = np.array([-5., 0., 5.])
-    mesh.z_grid = np.array([-10., -5., 0., 5., 10.])
+    mesh.x_grid = np.array([0.0, 1.0, 3.0, 6.0])
+    mesh.y_grid = np.array([-5.0, 0.0, 5.0])
+    mesh.z_grid = np.array([-10.0, -5.0, 0.0, 5.0, 10.0])
 
     # Sample some random data and write to VTKHDF
     rng = np.random.default_rng(42)
@@ -970,10 +1078,10 @@ def test_write_vtkhdf_rectilinear_mesh(run_in_tmpdir):
 def test_write_vtkhdf_cylindrical_mesh(run_in_tmpdir):
     """Test writing a cylindrical mesh to VTKHDF format."""
     mesh = openmc.CylindricalMesh(
-        r_grid=[0., 1., 2., 3.],
-        phi_grid=[0., pi/2, pi, 3*pi/2, 2*pi],
-        z_grid=[-5., 0., 5.],
-        origin=[0., 0., 0.]
+        r_grid=[0.0, 1.0, 2.0, 3.0],
+        phi_grid=[0.0, pi / 2, pi, 3 * pi / 2, 2 * pi],
+        z_grid=[-5.0, 0.0, 5.0],
+        origin=[0.0, 0.0, 0.0],
     )
 
     # Sample some random data and write to VTKHDF
@@ -993,17 +1101,17 @@ def test_write_vtkhdf_cylindrical_mesh(run_in_tmpdir):
 
         # Check dimensions (vertices)
         dims = root["Dimensions"][()]
-        expected_dims = np.array([3+1, 4+1, 2+1])  # r, phi, z
+        expected_dims = np.array([3 + 1, 4 + 1, 2 + 1])  # r, phi, z
         np.testing.assert_array_equal(dims, expected_dims)
 
 
 def test_write_vtkhdf_spherical_mesh(run_in_tmpdir):
     """Test writing a spherical mesh to VTKHDF format."""
     mesh = openmc.SphericalMesh(
-        r_grid=[0., 1., 2., 3.],
-        theta_grid=[0., pi/4, pi/2, 3*pi/4, pi],
-        phi_grid=[0., pi/2, pi, 3*pi/2, 2*pi],
-        origin=[0., 0., 0.]
+        r_grid=[0.0, 1.0, 2.0, 3.0],
+        theta_grid=[0.0, pi / 4, pi / 2, 3 * pi / 4, pi],
+        phi_grid=[0.0, pi / 2, pi, 3 * pi / 2, 2 * pi],
+        origin=[0.0, 0.0, 0.0],
     )
 
     # Sample some random data and write to VTKHDF
@@ -1026,8 +1134,8 @@ def test_write_vtkhdf_spherical_mesh(run_in_tmpdir):
 def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
     """Test volume normalization in VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0., 0., 0.]
-    mesh.upper_right = [10., 10., 10.]
+    mesh.lower_left = [0.0, 0.0, 0.0]
+    mesh.upper_right = [10.0, 10.0, 10.0]
     mesh.dimension = [2, 2, 2]
 
     # Create data with known values
@@ -1039,14 +1147,14 @@ def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
     mesh.write_data_to_vtk(
         datasets={"flux": ref_data},
         filename=filename_with_norm,
-        volume_normalization=True
+        volume_normalization=True,
     )
 
     # Write without normalization
     mesh.write_data_to_vtk(
         datasets={"flux": ref_data},
         filename=filename_without_norm,
-        volume_normalization=False
+        volume_normalization=False,
     )
 
     # Read both files and compare
@@ -1066,8 +1174,8 @@ def test_write_vtkhdf_volume_normalization(run_in_tmpdir):
 def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
     """Test writing multiple datasets to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0., 0., 0.]
-    mesh.upper_right = [1., 1., 1.]
+    mesh.lower_left = [0.0, 0.0, 0.0]
+    mesh.upper_right = [1.0, 1.0, 1.0]
     mesh.dimension = [2, 2, 2]
 
     # Create multiple datasets
@@ -1079,7 +1187,7 @@ def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
     filename = "test_multiple_datasets.vtkhdf"
     mesh.write_data_to_vtk(
         datasets={"flux": data1, "power": data2, "heating": data3},
-        filename=filename
+        filename=filename,
     )
 
     assert Path(filename).exists()
@@ -1093,42 +1201,40 @@ def test_write_vtkhdf_multiple_datasets(run_in_tmpdir):
 
         # Verify data integrity
         np.testing.assert_allclose(
-            root["CellData"]["flux"][()],
-            data1.T.ravel()
+            root["CellData"]["flux"][()], data1.T.ravel()
         )
         np.testing.assert_allclose(
-            root["CellData"]["power"][()],
-            data2.T.ravel()
+            root["CellData"]["power"][()], data2.T.ravel()
         )
         np.testing.assert_allclose(
-            root["CellData"]["heating"][()],
-            data3.T.ravel()
+            root["CellData"]["heating"][()], data3.T.ravel()
         )
 
 
 def test_write_vtkhdf_invalid_data_shape(run_in_tmpdir):
     """Test that VTKHDF raises error for mismatched data shape."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0., 0., 0.]
-    mesh.upper_right = [1., 1., 1.]
+    mesh.lower_left = [0.0, 0.0, 0.0]
+    mesh.upper_right = [1.0, 1.0, 1.0]
     mesh.dimension = [2, 2, 2]
 
     # Create data with wrong shape
     wrong_data = np.ones((3, 3, 3))
     filename = "test_invalid_shape.vtkhdf"
 
-    with pytest.raises(ValueError, match="Cannot apply multidimensional dataset"):
+    with pytest.raises(
+        ValueError, match="Cannot apply multidimensional dataset"
+    ):
         mesh.write_data_to_vtk(
-            datasets={"bad_data": wrong_data},
-            filename=filename
+            datasets={"bad_data": wrong_data}, filename=filename
         )
 
 
 def test_write_vtkhdf_1d_mesh(run_in_tmpdir):
     """Test writing a 1D regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0.]
-    mesh.upper_right = [10.]
+    mesh.lower_left = [0.0]
+    mesh.upper_right = [10.0]
     mesh.dimension = [5]
 
     rng = np.random.default_rng(42)
@@ -1149,8 +1255,8 @@ def test_write_vtkhdf_1d_mesh(run_in_tmpdir):
 def test_write_vtkhdf_2d_mesh(run_in_tmpdir):
     """Test writing a 2D regular mesh to VTKHDF format."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0., 0.]
-    mesh.upper_right = [10., 10.]
+    mesh.lower_left = [0.0, 0.0]
+    mesh.upper_right = [10.0, 10.0]
     mesh.dimension = [5, 3]
 
     rng = np.random.default_rng(42)
@@ -1171,8 +1277,8 @@ def test_write_vtkhdf_2d_mesh(run_in_tmpdir):
 def test_write_ascii_vtk_unchanged(run_in_tmpdir):
     """Test that ASCII .vtk format still works as before."""
     mesh = openmc.RegularMesh()
-    mesh.lower_left = [0., 0., 0.]
-    mesh.upper_right = [1., 1., 1.]
+    mesh.lower_left = [0.0, 0.0, 0.0]
+    mesh.upper_right = [1.0, 1.0, 1.0]
     mesh.dimension = [2, 2, 2]
 
     rng = np.random.default_rng(42)
